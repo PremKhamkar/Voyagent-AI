@@ -4,13 +4,14 @@ import Container from "../../components/ui/Container";
 
 function Planner() {
   const [trip, setTrip] = useState({
-    destination: "",
-    startDate: "",
-    endDate: "",
-    budget: "",
-    travelers: 1,
-    travelType: "Solo",
-  });
+  destination: "",
+  startDate: "",
+  endDate: "",
+  budget: "",
+  travelers: 1,
+  travelType: "Solo",
+  preferences: [],
+});
 
   const [errors, setErrors] = useState({});
 
@@ -68,6 +69,33 @@ function Planner() {
   console.log(trip);
 }
 
+function handlePreferenceChange(event) {
+  const { value, checked } = event.target;
+
+  if (checked) {
+    setTrip((prev) => ({
+      ...prev,
+      preferences: [...prev.preferences, value],
+    }));
+  } else {
+    setTrip((prev) => ({
+      ...prev,
+      preferences: prev.preferences.filter(
+        (item) => item !== value
+      ),
+    }));
+  }
+}
+const preferences = [
+  "Adventure",
+  "Beach",
+  "Nature",
+  "Food",
+  "Luxury",
+  "Shopping",
+  "Historical",
+  "Nightlife",
+];
   return (
     <div className="min-h-screen bg-gray-100 py-10">
       <Container>
@@ -201,6 +229,29 @@ function Planner() {
                 <option>Business</option>
               </select>
             </div>
+
+            <div>
+  <label className="font-medium block mb-3">
+    Trip Preferences
+  </label>
+
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    {preferences.map((item) => (
+      <label
+        key={item}
+        className="flex items-center gap-2"
+      >
+        <input
+          type="checkbox"
+          value={item}
+          onChange={handlePreferenceChange}
+        />
+
+        {item}
+      </label>
+    ))}
+  </div>
+</div>
 
             <Button
               type="submit"
