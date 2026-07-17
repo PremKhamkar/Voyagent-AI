@@ -1,5 +1,6 @@
 import Container from "../ui/Container";
 import Button from "../ui/Button";
+import { Link } from "react-router-dom";
 
 function CTA() {
   return (
@@ -14,9 +15,11 @@ function CTA() {
             Let Voyagent AI create a personalized itinerary for your next adventure.
           </p>
 
+          <Link to="/login">
           <Button>
-            Start Planning
+          Start Planning
           </Button>
+          </Link>
         </div>
       </Container>
     </section>

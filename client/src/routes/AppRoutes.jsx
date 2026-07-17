@@ -8,14 +8,23 @@ import Planner from "../pages/Planner/Planner";
 import Profile from "../pages/Profile/Profile";
 import SavedTrips from "../pages/SavedTrips/SavedTrips";
 import Settings from "../pages/Settings/Settings";
-
+import ProtectedRoute from "../components/ProtectedRoute";        
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={<Dashboard />} />
+      
+      <Route
+      path="/dashboard"
+      element={
+      <ProtectedRoute>
+      <Dashboard />
+      </ProtectedRoute>
+      }
+      />
+      
       <Route path="/planner" element={<Planner />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/saved-trips" element={<SavedTrips />} />

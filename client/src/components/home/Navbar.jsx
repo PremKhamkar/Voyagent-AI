@@ -25,13 +25,17 @@ function Navbar() {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
+            <Link to="/login">
             <Button className="border border-teal-500 text-teal-600 hover:bg-teal-50">
-              Login
+            Login
             </Button>
+            </Link>
 
+            <Link to="/register">
             <Button className="bg-teal-500 text-white hover:bg-teal-600">
-              Register
+            Register
             </Button>
+            </Link>
           </div>
         </div>
       </Container>

@@ -1,6 +1,7 @@
 import Button from "../ui/Button";
 import Container from "../ui/Container";
 import CONFIG from "../../constants/config";
+import { Link } from "react-router-dom";
 
 function Hero() {
   return (
@@ -24,9 +25,11 @@ function Hero() {
             </p>
 
             <div className="flex gap-4 mt-8">
-              <Button className="bg-teal-500 text-white hover:bg-teal-600">
-                Start Planning
-              </Button>
+              <Link to="/login">
+            <Button className="bg-teal-500 text-white hover:bg-teal-600">
+            Start Planning
+            </Button>
+            </Link>
 
               <Button className="border border-slate-300 hover:bg-gray-100">
                 Learn More
