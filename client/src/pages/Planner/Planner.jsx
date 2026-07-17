@@ -14,6 +14,9 @@ function Planner() {
 });
 
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const [generatedTrip, setGeneratedTrip] = useState(null);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -62,11 +65,19 @@ function Planner() {
 
   setErrors(newErrors);
 
-  if (Object.keys(newErrors).length > 0) {
-    return;
-  }
+if (Object.keys(newErrors).length > 0) {
+  return;
+}
 
+setLoading(true);
+
+setTimeout(() => {
   console.log(trip);
+
+  setGeneratedTrip(trip);
+
+  setLoading(false);
+}, 2000);
 }
 
 function handlePreferenceChange(event) {
@@ -254,13 +265,51 @@ const preferences = [
 </div>
 
             <Button
-              type="submit"
-              className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+            type="submit"
+            disabled={loading}
+            className="w-full bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generate AI Plan
+            {loading ? "Generating AI Plan..." : "Generate AI Plan"}
             </Button>
 
           </form>
+
+          {generatedTrip && (
+  <div className="mt-8 p-6 bg-gray-50 rounded-lg border">
+    <h2 className="text-2xl font-bold mb-4">
+      🗺️ Generated Trip Summary
+    </h2>
+
+    <p>
+      <strong>🌍 Destination:</strong>{" "}
+      {generatedTrip.destination}
+    </p>
+
+    <p>
+      <strong>📅 Dates:</strong>{" "}
+      {generatedTrip.startDate} → {generatedTrip.endDate}
+    </p>
+
+    <p>
+      <strong>💰 Budget:</strong> ₹{generatedTrip.budget}
+    </p>
+
+    <p>
+      <strong>👥 Travelers:</strong>{" "}
+      {generatedTrip.travelers}
+    </p>
+
+    <p>
+      <strong>❤️ Travel Type:</strong>{" "}
+      {generatedTrip.travelType}
+    </p>
+
+    <p>
+      <strong>🎯 Preferences:</strong>{" "}
+      {generatedTrip.preferences.join(", ")}
+    </p>
+  </div>
+)}
 
         </div>
       </Container>
