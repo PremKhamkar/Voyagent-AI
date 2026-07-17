@@ -1,18 +1,12 @@
+import Navbar from "../../components/home/Navbar";
+import Hero from "../../components/home/Hero";
+
 function Landing() {
   return (
-    <div
-      style={{
-        height: "100vh",
-        background: "#0F172A",
-        color: "white",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        fontSize: "40px",
-      }}
-    >
-      Welcome to Voyagent AI
-    </div>
+    <>
+      <Navbar />
+      <Hero />
+    </>
   );
 }
 
