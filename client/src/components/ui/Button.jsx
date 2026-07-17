@@ -1,14 +1,9 @@
-function Button({
-  children,
-  onClick,
-  type = "button",
-  className = "",
-}) {
+function Button({ children, type = "button", onClick, className = "" }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${className}`}
+      className={`bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold transition ${className}`}
     >
       {children}
     </button>
