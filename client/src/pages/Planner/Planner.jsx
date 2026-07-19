@@ -17,6 +17,7 @@ function Planner() {
   const [loading, setLoading] = useState(false);
 
   const [generatedTrip, setGeneratedTrip] = useState(null);
+  const [itinerary, setItinerary] = useState(null);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -27,7 +28,7 @@ function Planner() {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
   event.preventDefault();
 
   const newErrors = {};
@@ -71,13 +72,27 @@ if (Object.keys(newErrors).length > 0) {
 
 setLoading(true);
 
-setTimeout(() => {
-  console.log(trip);
+try {
+  const response = await fetch("http://127.0.0.1:8000/generate-trip", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(trip),
+  });
 
-  setGeneratedTrip(trip);
+  const data = await response.json();
+  console.log(data);
 
+setGeneratedTrip(data.trip);
+setItinerary(data.itinerary);
+
+} catch (error) {
+  console.error("Error:", error);
+
+} finally {
   setLoading(false);
-}, 2000);
+}
 }
 
 function handlePreferenceChange(event) {
@@ -308,6 +323,17 @@ const preferences = [
       <strong>🎯 Preferences:</strong>{" "}
       {generatedTrip.preferences.join(", ")}
     </p>
+  </div>
+)}
+{itinerary && (
+  <div className="mt-8 p-6 bg-white rounded-xl shadow">
+    <h2 className="text-2xl font-bold mb-4">
+      ✨ AI Travel Itinerary
+    </h2>
+
+    <pre className="whitespace-pre-wrap text-gray-700">
+      {itinerary}
+    </pre>
   </div>
 )}
 

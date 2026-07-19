@@ -12,3 +12,11 @@ server/__pycache__/
 
 # OS
 .DS_Store
+
+# Environment variables
+.env
+server/.env
+
+# Python cache
+*.pyo
+*.pyd
