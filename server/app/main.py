@@ -1,9 +1,11 @@
-from app.services.gemini_service import generate_itinerary
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+
 from app.models.trip import TripRequest
+from app.services.groq_service import generate_itinerary
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -37,11 +39,20 @@ def generate_trip(trip: TripRequest):
     Give a day-wise travel itinerary.
     """
 
-    ai_response = generate_itinerary(prompt)
+    try:
+        ai_response = generate_itinerary(prompt)
 
-    return {
-        "status": "success",
-        "message": "AI itinerary generated successfully!",
-        "trip": trip,
-        "itinerary": ai_response
-    }
+        return {
+            "status": "success",
+            "message": "AI itinerary generated successfully!",
+            "trip": trip,
+            "itinerary": ai_response
+        }
+
+    except Exception as e:
+        print("ERROR:", e)
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"Gemini is temporarily unavailable. {str(e)}"
+        )

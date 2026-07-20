@@ -2,33 +2,24 @@ import os
 from dotenv import load_dotenv
 from google import genai
 
-from pathlib import Path
+load_dotenv()
 
-env_path = Path(__file__).resolve().parent / ".env"
+key = os.getenv("GEMINI_API_KEY")
 
-print("Loading .env from:", env_path)
+print("Key loaded:", key is not None)
+print("Length:", len(key))
+print("Prefix:", key[:8])
 
-load_dotenv(dotenv_path=env_path, override=True)
-print("Loading .env from:", env_path)
-
-load_dotenv(dotenv_path=env_path, override=True)
-
-print("API KEY:", os.getenv("GEMINI_API_KEY"))
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-print("API KEY:", os.getenv("GEMINI_API_KEY"))
-
-client = genai.Client(api_key=api_key)
+client = genai.Client(api_key=key)
 
 try:
-    response = client.models.generate_content(
-    model="gemini-flash-latest",
-    contents=prompt,
-)
+    models = client.models.list()
 
-    print("SUCCESS!")
-    print(response.text)
+    print("Connected successfully!")
+
+    for model in models:
+        print(model.name)
 
 except Exception as e:
-    print("ERROR:", e)
+    print(type(e).__name__)
+    print(e)
