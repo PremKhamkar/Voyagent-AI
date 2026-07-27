@@ -2,10 +2,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models.trip import TripRequest
-from app.services.groq_service import generate_itinerary
+from app.graph.travel_graph import travel_graph
+
 
 app = FastAPI()
 
+
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -15,6 +18,7 @@ app.add_middleware(
 )
 
 
+# Home Route
 @app.get("/")
 def home():
     return {
@@ -22,31 +26,30 @@ def home():
     }
 
 
+# Generate Trip Route
 @app.post("/generate-trip")
 def generate_trip(trip: TripRequest):
 
-    prompt = f"""
-    Create a detailed travel itinerary.
-
-    Destination: {trip.destination}
-    Start Date: {trip.startDate}
-    End Date: {trip.endDate}
-    Budget: ₹{trip.budget}
-    Travelers: {trip.travelers}
-    Travel Type: {trip.travelType}
-    Preferences: {", ".join(trip.preferences)}
-
-    Give a day-wise travel itinerary.
-    """
-
     try:
-        ai_response = generate_itinerary(prompt)
+        result = travel_graph.invoke({
+            "destination": trip.destination,
+            "start_date": str(trip.startDate),
+            "end_date": str(trip.endDate),
+            "budget": trip.budget,
+            "travelers": trip.travelers,
+            "travel_type": trip.travelType,
+            "preferences": trip.preferences,
+            "destination_plan": "",
+            "budget_plan": "",
+            "accommodation_plan": "",
+            "itinerary": ""
+        })
 
         return {
             "status": "success",
             "message": "AI itinerary generated successfully!",
             "trip": trip,
-            "itinerary": ai_response
+            "itinerary": result["itinerary"]
         }
 
     except Exception as e:
@@ -54,5 +57,5 @@ def generate_trip(trip: TripRequest):
 
         raise HTTPException(
             status_code=503,
-            detail=f"Gemini is temporarily unavailable. {str(e)}"
+            detail=f"AI travel planning service is temporarily unavailable. {str(e)}"
         )

@@ -9,7 +9,7 @@ client = Groq(
 )
 
 
-def generate_itinerary(prompt: str):
+def generate_ai_response(prompt: str):
 
     chat_completion = client.chat.completions.create(
         messages=[
