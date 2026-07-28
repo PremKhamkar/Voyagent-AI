@@ -1,3 +1,4 @@
+from app.services.weather_service import get_weather
 from app.graph.state import TravelState
 from app.services.groq_service import generate_ai_response
 
@@ -35,6 +36,27 @@ def destination_node(state: TravelState):
     return {
         "destination_plan": destination_plan
     }
+    
+    
+def weather_node(state: TravelState):
+
+    print("LangGraph: Weather Node Running...")
+
+    weather = get_weather(state["destination"])
+
+    weather_info = f"""
+Current Weather in {weather['city']}, {weather['country']}:
+
+Temperature: {weather['temperature']}°C
+Feels Like: {weather['feels_like']}°C
+Condition: {weather['weather']}
+Humidity: {weather['humidity']}%
+Wind Speed: {weather['wind_speed']} m/s
+"""
+
+    return {
+        "weather_info": weather_info
+    }
 
 
 def budget_node(state: TravelState):
@@ -52,18 +74,27 @@ def budget_node(state: TravelState):
     Total Budget: ₹{state['budget']}
     Travelers: {state['travelers']}
     Travel Type: {state['travel_type']}
+    Weather Information:
+    {state['weather_info']}
 
     Destination Analysis:
     {state['destination_plan']}
 
     Divide the available budget into:
-    - Accommodation
-    - Food
-    - Local transportation
-    - Activities and sightseeing
-    - Emergency/miscellaneous expenses
+- Accommodation
+- Food
+- Local transportation
+- Activities and sightseeing
+- Emergency/miscellaneous expenses
 
-    Keep the total allocation within ₹{state['budget']}.
+Consider the current weather while planning the budget.
+
+For example:
+- If rain is expected, keep some budget for umbrellas/raincoats or indoor activities.
+- If it is very hot, consider drinking water, cooling and transport expenses.
+- If the weather is pleasant, outdoor activities can be given more importance.
+
+Keep the total allocation within ₹{state['budget']}.
     """
 
     budget_plan = generate_ai_response(prompt)
@@ -89,12 +120,21 @@ def accommodation_node(state: TravelState):
     Travelers: {state['travelers']}
     Travel Type: {state['travel_type']}
     Preferences: {", ".join(state['preferences'])}
+    Weather Information:
+    {state['weather_info']}
 
     Destination Analysis:
     {state['destination_plan']}
 
     Budget Plan:
     {state['budget_plan']}
+    
+    Consider the weather while recommending accommodation.
+
+For example:
+- During rainy weather, prefer hotels with good indoor facilities.
+- During hot weather, recommend air-conditioned accommodation.
+- During cold weather, recommend comfortable heated accommodation if available.
 
     Recommend:
     - Suitable areas/neighborhoods to stay
@@ -130,6 +170,8 @@ def itinerary_node(state: TravelState):
     Travelers: {state['travelers']}
     Travel Type: {state['travel_type']}
     Preferences: {", ".join(state['preferences'])}
+    Weather Information:
+    {state['weather_info']}
 
     Destination Plan:
     {state['destination_plan']}
@@ -141,6 +183,14 @@ def itinerary_node(state: TravelState):
     {state['accommodation_plan']}
 
     Create a practical day-wise travel itinerary.
+
+    Use the weather information while planning.
+
+    For example:
+    - Schedule outdoor sightseeing when the weather is pleasant.
+    - If rain is expected, include indoor attractions like museums, shopping malls or cafes.
+    - Mention any weather precautions if necessary.
+
     Keep the plan within the given budget.
     """
 

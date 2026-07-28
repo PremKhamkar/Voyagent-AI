@@ -14,3 +14,4 @@ class TravelState(TypedDict):
     itinerary: str
     destination_plan: str
     accommodation_plan: str
+    weather_info: str
