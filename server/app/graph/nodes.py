@@ -1,11 +1,32 @@
 from app.services.weather_service import get_weather
 from app.graph.state import TravelState
 from app.services.groq_service import generate_ai_response
+from app.services.places_service import (
+    get_coordinates,
+    get_attractions
+)
 
 
 def destination_node(state: TravelState):
 
     print("LangGraph: Destination Node Running...")
+    
+    attractions = []
+
+    try:
+        latitude, longitude = get_coordinates(
+            state["destination"]
+        )
+
+        attractions = get_attractions(
+            latitude,
+            longitude
+        )
+
+    except Exception as e:
+        print(f"Places Error: {e}")
+
+    print(attractions)
 
     prompt = f"""
     You are a destination planning specialist for a travel application.
@@ -19,24 +40,63 @@ def destination_node(state: TravelState):
     Travel Type: {state['travel_type']}
     Preferences: {", ".join(state['preferences'])}
 
+    Available Attractions:
+    {", ".join(attractions)}
+
+    Instructions:
+
+    - Select only the most famous tourist attractions.
+    - Ignore duplicates.
+    - Ignore unknown places.
+    - Select at most five attractions.
+    - Prioritize places that tourists usually visit.
+
     Create a concise destination plan containing:
 
-    - Best areas or places to visit
-    - Major attractions
-    - Activities matching the traveler's preferences
-    - Suitable areas to stay
-    - Useful local travel considerations
+    1. Top attractions
+    2. Recommended activities
+    3. Food recommendations
+    4. Suitable accommodation areas
+    5. Transportation suggestions
+    6. Safety recommendations
+    7. Weather-related advice
 
-    Do not create the complete day-wise itinerary.
+    Use the following format:
+
+    Top Attractions:
+    - ...
+
+    Recommended Activities:
+    - ...
+
+    Food Recommendations:
+    - ...
+
+    Accommodation Areas:
+    - ...
+
+    Transportation:
+    - ...
+
+    Safety Tips:
+    - ...
+
+    Weather Advice:
+    - ...
+
+    Keep the response concise and well organized.
+
+    Do not create a complete day-wise itinerary.
     This information will be passed to other travel planning agents.
     """
 
     destination_plan = generate_ai_response(prompt)
 
+    print(destination_plan)
+
     return {
-        "destination_plan": destination_plan
+    "destination_plan": destination_plan
     }
-    
     
 def weather_node(state: TravelState):
 
@@ -170,6 +230,7 @@ def itinerary_node(state: TravelState):
     Travelers: {state['travelers']}
     Travel Type: {state['travel_type']}
     Preferences: {", ".join(state['preferences'])}
+
     Weather Information:
     {state['weather_info']}
 
@@ -187,14 +248,31 @@ def itinerary_node(state: TravelState):
     Use the weather information while planning.
 
     For example:
+
     - Schedule outdoor sightseeing when the weather is pleasant.
-    - If rain is expected, include indoor attractions like museums, shopping malls or cafes.
-    - Mention any weather precautions if necessary.
+    - If rain is expected, include indoor attractions such as museums, shopping malls, or cafes.
+    - Mention any necessary weather precautions.
 
     Keep the plan within the given budget.
+
+    IMPORTANT RULES (MUST FOLLOW):
+
+- These rules are mandatory.
+- Never recommend unsafe activities.
+- Never recommend water sports during the monsoon season.
+- Never recommend trekking during heavy rain.
+- Never recommend beach bonfires during heavy rain.
+- Avoid waterfalls during storms or heavy rainfall.
+- Prefer museums, cafés, shopping centers, temples, and indoor attractions.
+- Prioritize traveler safety over entertainment.
+- Keep the total cost within the specified budget.
     """
 
     itinerary = generate_ai_response(prompt)
+
+    print("\n========== ITINERARY ==========\n")
+    print(itinerary)
+    print("\n===============================\n")
 
     return {
         "itinerary": itinerary
