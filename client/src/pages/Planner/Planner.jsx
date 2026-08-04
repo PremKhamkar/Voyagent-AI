@@ -1,3 +1,11 @@
+import HeroSection from "../../components/hero/HeroSection";
+import Navbar from "../../components/navbar/Navbar";
+
+import WeatherCard from "../../components/cards/WeatherCard";
+import BudgetCard from "../../components/cards/BudgetCard";
+import AttractionCard from "../../components/cards/AttractionCard";
+import AccommodationCard from "../../components/cards/AccommodationCard";
+import ItineraryCard from "../../components/cards/ItineraryCard";
 import { useState } from "react";
 import Button from "../../components/ui/Button";
 import Container from "../../components/ui/Container";
@@ -123,19 +131,36 @@ const preferences = [
   "Nightlife",
 ];
   return (
-    <div className="min-h-screen bg-gray-100 py-10">
+    <div
+  className="
+    min-h-screen
+    bg-gradient-to-br
+    from-slate-900
+    via-cyan-900
+    to-slate-950
+    py-10
+    text-white
+  "
+>
       <Container>
-        <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <Navbar />
 
-          <h1 className="text-3xl font-bold mb-2">
-            🗺️ Plan Your Next Journey
-          </h1>
+            <HeroSection />
 
-          <p className="text-gray-500 mb-8">
-            Tell us about your trip and let AI create the perfect itinerary.
-          </p>
+              <div
+                className="
+                  rounded-3xl
+                  border
+                  border-white/10
+                  bg-white/10
+                  backdrop-blur-lg
+                  p-8
+                  shadow-2xl
+                  "
+              >
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-8">              
 
             <div>
               <label className="font-medium">
@@ -147,14 +172,30 @@ const preferences = [
                 value={trip.destination}
                 onChange={handleChange}
                 placeholder="e.g. Japan"
-                className="w-full mt-2 border rounded-lg px-4 py-3"
+                className="
+                w-full
+                mt-2
+                rounded-xl
+                border
+                border-white/20
+                bg-slate-800
+                px-4
+                py-3
+                text-white
+                outline-none
+                focus:border-cyan-400
+                "
+                
               />
+             
+              
               {errors.destination && (
               <p className="text-red-500 text-sm mt-1">
               {errors.destination}
               </p>
               )}
             </div>
+            
 
             
             <div className="grid md:grid-cols-2 gap-6">
@@ -243,17 +284,29 @@ const preferences = [
               </label>
 
               <select
-                name="travelType"
-                value={trip.travelType}
-                onChange={handleChange}
-                className="w-full mt-2 border rounded-lg px-4 py-3"
+              name="travelType"
+              value={trip.travelType}
+              onChange={handleChange}
+              className="
+              w-full
+              mt-2
+              rounded-xl
+              border
+              border-white/20
+              bg-slate-800
+              px-4
+              py-3
+              text-white
+              outline-none
+              focus:border-cyan-400
+              "
               >
-                <option>Solo</option>
-                <option>Couple</option>
-                <option>Family</option>
-                <option>Friends</option>
-                <option>Business</option>
-              </select>
+    <option value="Solo">Solo</option>
+    <option value="Couple">Couple</option>
+    <option value="Family">Family</option>
+    <option value="Friends">Friends</option>
+    <option value="Business">Business</option>
+</select>                                                                                   
             </div>
 
             <div>
@@ -282,15 +335,26 @@ const preferences = [
             <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="
+              w-full
+              rounded-xl
+              bg-cyan-500
+              py-4
+              font-semibold
+              transition
+              hover:scale-[1.01]
+              hover:bg-cyan-600
+              "
             >
             {loading ? "Generating AI Plan..." : "Generate AI Plan"}
             </Button>
 
           </form>
 
+          </div>
+
           {generatedTrip && (
-  <div className="mt-8 p-6 bg-gray-50 rounded-lg border">
+  <div className="mt-8 rounded-3xl bg-slate-800 p-6">
     <h2 className="text-2xl font-bold mb-4">
       🗺️ Generated Trip Summary
     </h2>
@@ -326,16 +390,28 @@ const preferences = [
   </div>
 )}
 {itinerary && (
-  <div className="mt-8 p-6 bg-white rounded-xl shadow">
+  <div className="mt-8 rounded-3xl bg-slate-800 p-6">
     <h2 className="text-2xl font-bold mb-4">
       ✨ AI Travel Itinerary
     </h2>
 
-    <pre className="whitespace-pre-wrap text-gray-700">
+    <pre className="whitespace-pre-wrap text-gray-200">
       {itinerary}
     </pre>
   </div>
 )}
+
+<div className="grid gap-6 mt-8">
+    <WeatherCard />
+
+    <BudgetCard />
+
+    <AttractionCard />
+
+    <AccommodationCard />
+
+    <ItineraryCard />
+</div>
 
         </div>
       </Container>
