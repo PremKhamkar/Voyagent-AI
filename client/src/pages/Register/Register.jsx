@@ -5,11 +5,18 @@ import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
 import Button from "../../components/ui/Button";
 
-function Register() {
+function Register({
+  isModal = false,
+  switchToLogin,
+}) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+  useState(false);
 
   const [fullNameError, setFullNameError] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -69,7 +76,7 @@ function Register() {
     } 
 
   return (
-    <AuthLayout>
+    <AuthLayout isModal={isModal}>
       <div className="space-y-6">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-center">
@@ -117,15 +124,28 @@ function Register() {
             </p>
           )}
 
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setPasswordError("");
-            }}
-          />
+          <div className="relative">
+  <Input
+    type={showPassword ? "text" : "password"}
+    placeholder="Password"
+    value={password}
+    onChange={(e) => {
+      setPassword(e.target.value);
+      setPasswordError("");
+    }}
+  />
+
+  <button
+    type="button"
+    className="
+      absolute right-4 top-1/2
+      -translate-y-1/2
+    "
+    onClick={() => setShowPassword(!showPassword)}
+  >
+    {showPassword ? "🙈" : "👁️"}
+  </button>
+</div>
 
           {passwordError && (
             <p className="text-sm text-red-500">
@@ -133,15 +153,30 @@ function Register() {
             </p>
           )}
 
-          <Input
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setConfirmPasswordError("");
-            }}
-          />
+          <div className="relative">
+  <Input
+    type={showConfirmPassword ? "text" : "password"}
+    placeholder="Confirm Password"
+    value={confirmPassword}
+    onChange={(e) => {
+      setConfirmPassword(e.target.value);
+      setConfirmPasswordError("");
+    }}
+  />
+
+  <button
+    type="button"
+    className="
+      absolute right-4 top-1/2
+      -translate-y-1/2
+    "
+    onClick={() =>
+      setShowConfirmPassword(!showConfirmPassword)
+    }
+  >
+    {showConfirmPassword ? "🙈" : "👁️"}
+  </button>
+</div>
 
           {confirmPasswordError && (
             <p className="text-sm text-red-500">
@@ -162,12 +197,16 @@ function Register() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <Link
-                to="/login"
-                className="font-semibold text-teal-600 hover:underline"
-              >
-                Sign In
-              </Link>
+              <button
+              type="button"
+              onClick={switchToLogin}
+              className="
+                font-semibold text-teal-600
+                hover:underline
+              "
+            >
+              Sign In
+            </button>           
             </p>
           </div>
         </form>

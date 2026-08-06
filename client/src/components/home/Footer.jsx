@@ -2,54 +2,68 @@ import Container from "../ui/Container";
 
 function Footer() {
   return (
-    <footer className="bg-slate-950 text-white py-16">
+    <footer className="bg-slate-950 py-20 text-white">
       <Container>
-        {/* Footer Grid */}
-        <div className="grid md:grid-cols-3 gap-10">
+        <div className="grid gap-12 md:grid-cols-4">
+          {/* Company */}
 
-          {/* Column 1 - Company */}
           <div>
-            <h3 className="text-2xl font-bold mb-4">
+            <h3 className="mb-4 text-3xl font-bold">
               Voyagent AI
             </h3>
 
-            <p className="text-slate-400">
-              Plan smarter. Travel better.
+            <p className="leading-7 text-slate-400">
+              Plan smarter, travel better, and create
+              unforgettable experiences with AI.
             </p>
           </div>
 
-          {/* Column 2 - Quick Links */}
+          {/* Explore */}
+
           <div>
-            <h3 className="text-xl font-semibold mb-4">
-              Quick Links
+            <h3 className="mb-4 text-xl font-semibold">
+              Explore
             </h3>
 
-            <ul className="space-y-2 text-slate-400">
-              <li>Home</li>
-              <li>Features</li>
-              <li>About</li>
+            <ul className="space-y-3 text-slate-400">
+              <li className="hover:text-white">Home</li>
+              <li className="hover:text-white">Destinations</li>
+              <li className="hover:text-white">Features</li>
             </ul>
           </div>
 
-          {/* Column 3 - Contact */}
+          {/* Resources */}
+
           <div>
-            <h3 className="text-xl font-semibold mb-4">
+            <h3 className="mb-4 text-xl font-semibold">
+              Resources
+            </h3>
+
+            <ul className="space-y-3 text-slate-400">
+              <li className="hover:text-white">Travel Guides</li>
+              <li className="hover:text-white">Blog</li>
+              <li className="hover:text-white">Support</li>
+            </ul>
+          </div>
+
+          {/* Contact */}
+
+          <div>
+            <h3 className="mb-4 text-xl font-semibold">
               Contact
             </h3>
 
-            <p className="text-slate-400">
+            <p className="mb-2 text-slate-400">
               support@voyagent.ai
             </p>
 
-            <p className="text-slate-400 mt-2">
+            <p className="text-slate-400">
               +91 98765 43210
             </p>
           </div>
-
         </div>
 
-        {/* Copyright */}
-        <div className="border-t border-slate-800 mt-10 pt-6 text-center text-slate-500">
+        <div className="mt-12 border-t border-slate-800 pt-8 text-center text-slate-500">
           © 2026 Voyagent AI. All rights reserved.
         </div>
       </Container>

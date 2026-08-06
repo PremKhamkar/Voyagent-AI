@@ -1,45 +1,76 @@
 import { Link } from "react-router-dom";
-import Button from "../ui/Button";
-import Container from "../ui/Container";
+import { motion } from "framer-motion";
 
-function Navbar() {
+function Navbar({ openAuth }) {
   return (
-    <nav className="w-full border-b border-gray-200 bg-white">
-      <Container>
-        <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link
-            to="/"
-            className="text-3xl font-bold text-teal-600"
-          >
+    <motion.nav
+      initial={{ opacity: 0, y: -25 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="
+  sticky top-0 z-50
+  w-full flex items-center
+  justify-between rounded-none
+  border-b border-gray-200
+  bg-white/90 px-12 py-4
+  shadow-lg backdrop-blur-xl
+"
+    >
+      {/* Logo */}
+
+      <div className="flex items-center gap-3">
+    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600">
+        ✈
+    </div>
+
+    <div className="flex flex-col">
+        <span className="text-xl font-bold text-black">
             Voyagent AI
-          </Link>
+        </span>
 
-          {/* Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/">Home</Link>
-            <Link to="/">Features</Link>
-            <Link to="/">Destinations</Link>
-            <Link to="/">About</Link>
-          </div>
+        <span className="text-xs text-gray-500">
+            AI Travel Planner
+        </span>
+    </div>
+</div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3">
-            <Link to="/login">
-            <Button className="border border-teal-500 text-teal-600 hover:bg-teal-50">
-            Login
-            </Button>
-            </Link>
+      {/* Navigation */}
 
-            <Link to="/register">
-            <Button className="bg-teal-500 text-white hover:bg-teal-600">
-            Register
-            </Button>
-            </Link>
-          </div>
-        </div>
-      </Container>
-    </nav>
+      <div className="hidden gap-8 md:flex">
+        <a href="#features" className="text-gray-700 hover:text-cyan-500">
+          Features
+        </a>
+
+        <a href="#destinations" className="text-gray-700 hover:text-cyan-500">
+          Destinations
+        </a>
+
+        <a href="#about" className="text-gray-700 hover:text-cyan-500">
+          About
+        </a>
+      </div>
+
+      {/* Buttons */}
+
+<div className="flex items-center gap-4">
+  <button
+    onClick={openAuth}
+    className="text-gray-700 transition hover:text-cyan-500"
+  >
+    Login
+  </button>
+
+  <button
+    onClick={openAuth}
+    className="
+      rounded-xl bg-cyan-500
+      px-5 py-2 font-semibold
+      transition hover:bg-cyan-400
+    "
+  >
+    Get Started
+  </button>
+</div>
+    </motion.nav>
   );
 }
 

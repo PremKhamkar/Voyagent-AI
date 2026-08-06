@@ -20,13 +20,29 @@ const testimonials = [
   },
 ];
 return (
-  <section className="py-20 bg-slate-100">
+  <section
+  className="
+    relative overflow-hidden py-24
+    bg-gradient-to-b
+    from-slate-50
+    via-white
+    to-cyan-50
+  "
+>
+  <div
+  className="
+    absolute right-20 bottom-20
+    h-48 w-48 rounded-full
+    bg-indigo-100 blur-3xl
+    opacity-50
+  "
+></div>
     <Container>
         <SectionTitle
-            title="What Our Travelers Say"
-            subtitle="Hear from people who planned their trips with Voyagent AI."
+            title="Trusted by Travelers Worldwide"
+            subtitle="Discover how Voyagent AI is helping people create unforgettable journeys."
         />
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
             {testimonials.map((testimonial, index) => (
             <TestimonialCard
             key={index}

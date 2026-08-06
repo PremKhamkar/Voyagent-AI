@@ -22,14 +22,14 @@ function HowItWorks() {
   ];
 
   return (
-    <section className="py-20 bg-slate-50">
+    <section className="bg-white py-24">
       <Container>
         <SectionTitle
-          title="How It Works"
-          subtitle="Plan your next trip in just three simple steps."
+          title="Plan Your Journey in Three Steps"
+          subtitle="Voyagent AI helps you create personalized travel plans in just a few clicks."
         />
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid gap-8 md:grid-cols-3">
           {steps.map((step, index) => (
             <StepCard
               key={index}

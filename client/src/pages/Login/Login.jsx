@@ -5,9 +5,13 @@ import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
 import Button from "../../components/ui/Button";
 
-function Login() {
+function Login({
+  isModal = false,
+  switchToRegister,
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -53,7 +57,7 @@ function Login() {
     }
 
   return (
-    <AuthLayout>
+    <AuthLayout isModal={isModal}>
       <div className="space-y-6">
         {/* Heading */}
         <div className="space-y-2">
@@ -87,15 +91,28 @@ function Login() {
             </p>
           )}
 
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              setPasswordError("");
-            }}
-          />
+          <div className="relative">
+  <Input
+    type={showPassword ? "text" : "password"}
+    placeholder="Password"
+    value={password}
+    onChange={(event) => {
+      setPassword(event.target.value);
+      setPasswordError("");
+    }}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="
+      absolute right-4 top-1/2
+      -translate-y-1/2 text-gray-500
+    "
+  >
+    {showPassword ? "🙈" : "👁️"}
+  </button>
+</div>
 
           {passwordError && (
             <p className="text-sm text-red-500">
@@ -138,12 +155,16 @@ function Login() {
           <p className="text-sm text-gray-600">
           Don't have an account?{" "}
           
-          <Link
-          to="/register"
-          className="font-semibold text-teal-600 hover:underline"
+          <button
+              type="button"
+              onClick={switchToRegister}
+              className="
+                font-semibold text-teal-600
+                hover:underline
+                "
           >
           Sign Up
-          </Link>
+          </button>           
           </p>
           </div>
           
