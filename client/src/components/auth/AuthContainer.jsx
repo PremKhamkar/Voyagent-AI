@@ -1,233 +1,271 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { Plane } from "lucide-react";
+import { motion } from "framer-motion";
 
 import Login from "../../pages/Login/Login";
 import Register from "../../pages/Register/Register";
 
 function AuthContainer() {
   const [activeTab, setActiveTab] = useState("login");
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const destinations = [
-  {
-    name: "Paris",
-    country: "France",
-    rating: "★★★★★",
-    description: "Experience the city of lights.",
-    image:
-      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
-  },
-  {
-    name: "Goa",
-    country: "India",
-    rating: "★★★★★",
-    description: "Relax on beautiful beaches.",
-    image:
-      "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1200",
-  },
-  {
-    name: "Tokyo",
-    country: "Japan",
-    rating: "★★★★★",
-    description: "Discover futuristic adventures.",
-    image:
-      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1200",
-  },
-  {
-    name: "Switzerland",
-    country: "Switzerland",
-    rating: "★★★★★",
-    description: "Explore breathtaking mountains.",
-    image:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200",
-  },
-];
-const [currentSlide, setCurrentSlide] = useState(0);
+    {
+      city: "Paris",
+      country: "France",
+      description:
+        "Experience beautiful architecture, culture, and cuisine.",
+      image:
+        "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1600",
+    },
+    {
+      city: "Tokyo",
+      country: "Japan",
+      description:
+        "A perfect blend of tradition and modern technology.",
+      image:
+        "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1600",
+    },
+    {
+      city: "Goa",
+      country: "India",
+      description:
+        "Relax on beautiful beaches and enjoy the nightlife.",
+      image:
+        "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=1600",
+    },
+  ];
 
-useEffect(() => {
-  const interval = setInterval(() => {
-    setCurrentSlide(
-      (previous) => (previous + 1) % destinations.length
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide(
+        (previous) => (previous + 1) % destinations.length
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [destinations.length]);
+
+  const destination = destinations[currentSlide];
+
+  function handleTabChange() {
+    setActiveTab((current) =>
+      current === "login" ? "register" : "login"
     );
-  }, 4000);
-
-  return () => clearInterval(interval);
-}, []);
+  }
 
   return (
-    <div className="grid min-h-[650px] md:grid-cols-2">
-      {/* Left section */}
+    <div className="grid h-full min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-2">
 
-      <div className="relative hidden overflow-hidden md:flex">
-  <img
-    src={destinations[currentSlide].image}
-    alt={destinations[currentSlide].name}
-    className="
-      absolute inset-0
-      h-full w-full
-      object-cover
-      transition-all duration-1000
-    "
-  />
+      {/* =====================================================
+          LEFT — DESTINATION SHOWCASE
+      ====================================================== */}
 
-  <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60" />
-  <motion.div
-  animate={{
-    x: [-50, 250, 550, 850],
-    y: [0, -20, 10, -10],
-    rotate: [0, 5, -5, 0],
-  }}
-  transition={{
-    duration: 12,
-    repeat: Infinity,
-    ease: "linear",
-  }}
-  className="absolute left-0 top-20 z-10"
->
-  <Plane
-    className="h-10 w-10 text-white"
-    strokeWidth={2.5}
-  />
-</motion.div>
+      <div className="relative hidden min-h-0 overflow-hidden lg:block">
 
-  <div
-    className="
-      relative z-10
-      flex h-full flex-col
-      justify-end p-12 text-white
-    "
-  >
-    <div className="mb-4 flex items-center gap-3">
-  <span
-    className="
-      rounded-full bg-white/20
-      px-4 py-2 text-sm
-      backdrop-blur-md
-    "
-  >
-    📍 {destinations[currentSlide].country}
-  </span>
+        {/* Background Image */}
 
-  <span className="text-yellow-300">
-    {destinations[currentSlide].rating}
-  </span>
-</div>
-
-    <h1 className="text-5xl font-bold">
-      {destinations[currentSlide].name}
-    </h1>
-
-    <p className="mt-4 max-w-md text-lg leading-8 text-gray-200">
-      {destinations[currentSlide].description}
-    </p>
-
-    <div className="mt-8 flex gap-3">
-      {destinations.map((_, index) => (
-        <div
-          key={index}
-          className={`h-2 w-8 rounded-full ${
-            index === currentSlide
-              ? "bg-white"
-              : "bg-white/40"
-          }`}
+        <img
+          key={destination.city}
+          src={destination.image}
+          alt={destination.city}
+          className="
+            absolute
+            inset-0
+            h-full
+            w-full
+            object-cover
+            transition-opacity
+            duration-700
+          "
         />
-      ))}
-    </div>
-  </div>
-</div>
-      {/* Right section */}
 
-      <div
-  className="
-    border-l border-white/20
-    bg-white/80 p-8
-    backdrop-blur-xl
-  "
->
+        {/* Dark Gradient */}
+
         <div
-  className="
-    mb-8 flex rounded-2xl
-    border border-gray-200
-    bg-gray-100/80 p-1
-    shadow-sm
-  "
->
-          <button
-          className={`flex-1 rounded-xl py-3 font-medium transition-all duration-300 ${
-              activeTab === "login"
-                ? "bg-cyan-500 text-white shadow-md"
-                : "text-gray-700"
-            }`}
-            onClick={() => setActiveTab("login")}
-          >
-            Login
-          </button>
+          className="
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-black/80
+            via-black/25
+            to-black/10
+          "
+        />
 
-          <button
-            className={`flex-1 rounded-xl py-3 ${
-              activeTab === "register"
-                ? "bg-cyan-500 text-white"
-                : "text-gray-700"
-            }`}
-            onClick={() => setActiveTab("register")}
-          >
-            Register
-          </button>
+        {/* Brand */}
+
+        <div className="absolute left-8 top-8 z-20">
+          <h1 className="text-2xl font-bold tracking-wide text-white">
+            Voyagent
+          </h1>
         </div>
 
-        <AnimatePresence mode="wait">
+        {/* Destination Information */}
 
-          <motion.div
-  animate={{
-    x: [-100, 700],
-  }}
-  transition={{
-    duration: 25,
-    repeat: Infinity,
-    ease: "linear",
-  }}
-  className="absolute left-0 top-12 z-10"
->
-  <div className="text-5xl opacity-70">☁️</div>
-</motion.div>
+        <div className="absolute bottom-8 left-8 right-8 z-20">
 
-<motion.div
-  animate={{
-    x: [700, -100],
-  }}
-  transition={{
-    duration: 35,
-    repeat: Infinity,
-    ease: "linear",
-  }}
-  className="absolute right-0 top-40 z-10"
+          <div
+            className="
+              max-w-xl
+              rounded-3xl
+              border
+              border-white/20
+              bg-black/25
+              p-7
+              text-white
+              shadow-2xl
+              backdrop-blur-xl
+            "
+          >
+
+            <span
+              className="
+                text-xs
+                font-medium
+                uppercase
+                tracking-[0.25em]
+                text-white/70
+              "
+            >
+              Featured Destination
+            </span>
+
+            <h2 className="mt-3 text-4xl font-bold tracking-tight">
+              {destination.city}
+            </h2>
+
+            <p className="mt-1 text-base text-white/80">
+              {destination.country}
+            </p>
+
+            <p className="mt-4 max-w-md text-sm leading-6 text-white/75">
+              {destination.description}
+            </p>
+
+            {/* Slide Indicators */}
+
+            <div className="mt-6 flex items-center gap-2">
+              {destinations.map((item, index) => (
+                <button
+                  key={item.city}
+                  type="button"
+                  onClick={() => setCurrentSlide(index)}
+                  aria-label={`Show ${item.city}`}
+                  className={`
+                    h-1.5
+                    rounded-full
+                    transition-all
+                    duration-500
+                    ${
+                      index === currentSlide
+                        ? "w-9 bg-white"
+                        : "w-1.5 bg-white/40 hover:bg-white/70"
+                    }
+                  `}
+                />
+              ))}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* =====================================================
+          RIGHT — AUTHENTICATION
+      ====================================================== */}
+
+      <div
+        className="
+          flex
+          min-h-0
+          flex-col
+          bg-white
+        "
+      >
+
+  
+
+        {/* Scrollable Authentication Content */}
+
+        <div 
+  className="
+    min-h-0
+    flex-1
+    overflow-y-auto
+    px-8
+    pb-8
+    pt-8
+    lg:px-12
+    lg:pb-10
+    lg:pt-6
+  " 
 >
-  <div className="text-4xl opacity-50">☁️</div>
-</motion.div>
-  <motion.div
-    key={activeTab}
-    initial={{ opacity: 0, x: 30 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -30 }}
-    transition={{ duration: 0.3 }}
-  >
-    {activeTab === "login" ? (
-      <Login
-        isModal
-        switchToRegister={() =>
-          setActiveTab("register")
-        }
-      />
-    ) : (
-      <Register
-        isModal
-        switchToLogin={() =>
-          setActiveTab("login")
-        }
-      />
-    )}
-  </motion.div>
-</AnimatePresence>
+
+          <div className="mx-auto w-full max-w-md">
+
+            {/* Heading */}
+
+            <div className="mb-6 text-center">
+
+              <h2
+                className="
+                  text-3xl
+                  font-bold
+                  tracking-tight
+                  text-slate-900
+                  lg:text-4xl
+                "
+              >
+                {activeTab === "login"
+                  ? "Welcome Back"
+                  : "Create Account"}
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-500 lg:text-base">
+                {activeTab === "login"
+                  ? "Sign in to continue your journey."
+                  : "Create an account and start exploring."}
+              </p>
+
+            </div>
+
+            {/* Authentication Form */}
+
+            <motion.div
+              key={activeTab}
+              initial={{
+                opacity: 0,
+                y: 12,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{
+                duration: 0.25,
+                ease: "easeOut",
+              }}
+            >
+              {activeTab === "login" ? (
+                <Login
+                  isModal
+                  switchToRegister={() =>
+                    setActiveTab("register")
+                  }
+                />
+              ) : (
+                <Register
+                  isModal
+                  switchToLogin={() =>
+                    setActiveTab("login")
+                  }
+                />
+              )}
+            </motion.div>
+
+          </div>
+
+        </div>
       </div>
     </div>
   );

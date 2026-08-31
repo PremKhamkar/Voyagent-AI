@@ -1,7 +1,7 @@
 function AuthLayout({ children, isModal = false }) {
   if (isModal) {
     return (
-      <div className="w-full p-8 md:p-10">
+      <div className="w-full">
         {children}
       </div>
     );
@@ -10,14 +10,17 @@ function AuthLayout({ children, isModal = false }) {
   return (
     <main
       className="
-        flex min-h-screen items-center
-        justify-center bg-gray-100
+        flex min-h-screen items-center justify-center
+        bg-slate-100 px-6 py-12
       "
     >
       <div
         className="
-          w-full max-w-md rounded-xl
-          bg-white p-8 shadow-lg
+          w-full max-w-md
+          rounded-3xl
+          bg-white
+          p-8
+          shadow-xl
         "
       >
         {children}

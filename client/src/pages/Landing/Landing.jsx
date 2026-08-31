@@ -28,11 +28,11 @@ function Landing() {
       <Footer />
 
       <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-      >
-        <AuthContainer />
-      </AuthModal>
+  isOpen={isAuthOpen}
+  onClose={() => setIsAuthOpen(false)}
+>
+  <AuthContainer />
+</AuthModal>
     </>
   );
 }

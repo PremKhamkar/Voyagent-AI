@@ -1,5 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
@@ -11,13 +11,14 @@ function Login({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -29,7 +30,7 @@ function Login({
 
     let isValid = true;
 
-    if (!email) {
+    if (!email.trim()) {
       setEmailError("Email is required.");
       isValid = false;
     } else if (!email.includes("@")) {
@@ -45,39 +46,37 @@ function Login({
     if (!isValid) {
       return;
     }
+
     setIsLoading(true);
 
     setTimeout(() => {
-    localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("isLoggedIn", "true");
 
-    setIsLoading(false);
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+      }
 
-    navigate("/dashboard");
+      setIsLoading(false);
+      navigate("/dashboard");
     }, 1000);
-    }
+  }
 
   return (
     <AuthLayout isModal={isModal}>
-      <div className="space-y-6">
-        {/* Heading */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-center">
-            Welcome Back
-          </h1>
+      <form
+  onSubmit={handleSignIn}
+  className="mx-auto w-full max-w-[390px] space-y-7"
+>
+        {/* Email */}
 
-          <p className="text-center text-gray-500">
-            Sign in to continue planning your trips.
-          </p>
-        </div>
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-slate-700">
+            Email Address
+          </label>
 
-        {/* Login Form */}
-        <form
-          onSubmit={handleSignIn}
-          className="space-y-4"
-        >
           <Input
             type="email"
-            placeholder="Email Address"
+            placeholder="Enter your email"
             value={email}
             onChange={(event) => {
               setEmail(event.target.value);
@@ -90,87 +89,140 @@ function Login({
               {emailError}
             </p>
           )}
+        </div>
+
+        {/* Password */}
+
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-slate-700">
+            Password
+          </label>
 
           <div className="relative">
-  <Input
-    type={showPassword ? "text" : "password"}
-    placeholder="Password"
-    value={password}
-    onChange={(event) => {
-      setPassword(event.target.value);
-      setPasswordError("");
-    }}
-  />
+            <Input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setPasswordError("");
+              }}
+            />
 
-  <button
-    type="button"
-    onClick={() => setShowPassword(!showPassword)}
-    className="
-      absolute right-4 top-1/2
-      -translate-y-1/2 text-gray-500
-    "
-  >
-    {showPassword ? "🙈" : "👁️"}
-  </button>
-</div>
+            <button
+              type="button"
+              onClick={() =>
+                setShowPassword((previous) => !previous)
+              }
+              className="
+                absolute
+                right-4
+                top-1/2
+                -translate-y-1/2
+                text-sm
+                font-medium
+                text-slate-500
+                transition-colors
+                hover:text-slate-800
+              "
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
 
           {passwordError && (
             <p className="text-sm text-red-500">
               {passwordError}
             </p>
           )}
+        </div>
 
-          <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer">
-          <input
-          type="checkbox"
-          checked={rememberMe}
-          onChange={(event) =>
-          setRememberMe(event.target.checked)
-          }
-          />
+        {/* Remember Me / Forgot Password */}
 
-          <span className="text-sm text-gray-700">
-          Remember Me
-          </span>
+        <div className="flex items-center justify-between">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) =>
+                setRememberMe(event.target.checked)
+              }
+              className="
+                h-4
+                w-4
+                rounded
+                border-slate-300
+                accent-cyan-500
+              "
+            />
+
+            <span className="text-sm text-slate-600">
+              Remember me
+            </span>
           </label>
 
           <button
-          type="button"
-          className="text-sm text-teal-600 hover:underline"
+            type="button"
+            className="
+              text-sm
+              font-medium
+              text-cyan-600
+              transition-colors
+              hover:text-cyan-700
+              hover:underline
+            "
           >
-          Forgot Password?
+            Forgot password?
           </button>
-          </div>
+        </div>
 
-          <Button
+        {/* Sign In Button */}
+
+        <Button
           type="submit"
-          className="w-full"
           disabled={isLoading}
-          >
+          className="
+            mt-2
+            h-12
+            w-56
+            rounded-xl
+            bg-cyan-500
+            text-white
+            shadow-sm
+            transition-all
+            duration-200
+            hover:bg-cyan-600
+            hover:shadow-md
+            disabled:cursor-not-allowed
+            disabled:opacity-60
+          "
+        >
           {isLoading ? "Signing In..." : "Sign In"}
-          </Button>
+        </Button>
 
-          <div className="text-center">
-          <p className="text-sm text-gray-600">
-          Don't have an account?{" "}
-          
-          <button
+        {/* Sign Up */}
+
+        <div className="pt-1 text-center">
+          <p className="text-sm text-slate-500">
+            Don't have an account?{" "}
+
+            <button
               type="button"
               onClick={switchToRegister}
               className="
-                font-semibold text-teal-600
+                font-semibold
+                text-cyan-600
+                transition-colors
+                hover:text-cyan-700
                 hover:underline
-                "
-          >
-          Sign Up
-          </button>           
+              "
+            >
+              Sign Up
+            </button>
           </p>
-          </div>
-          
-          </form>
-          </div>
-          </AuthLayout>
+        </div>
+      </form>
+    </AuthLayout>
   );
 }
 

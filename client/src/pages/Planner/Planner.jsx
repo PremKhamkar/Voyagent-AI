@@ -1,6 +1,6 @@
 import HeroSection from "../../components/hero/HeroSection";
 import Navbar from "../../components/navbar/Navbar";
-
+import AgentFlow from "../../components/planner/AgentFlow";
 import WeatherCard from "../../components/cards/WeatherCard";
 import BudgetCard from "../../components/cards/BudgetCard";
 import AttractionCard from "../../components/cards/AttractionCard";
@@ -9,6 +9,8 @@ import ItineraryCard from "../../components/cards/ItineraryCard";
 import { useState } from "react";
 import Button from "../../components/ui/Button";
 import Container from "../../components/ui/Container";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function Planner() {
   const [trip, setTrip] = useState({
@@ -46,13 +48,22 @@ function Planner() {
   }
 
   if (!trip.startDate) {
-    newErrors.startDate = "Start date is required.";
-  }
+  newErrors.startDate = "Start date is required.";
+} else {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  if (!trip.endDate) {
-    newErrors.endDate = "End date is required.";
-  }
+  const selectedStartDate = new Date(trip.startDate);
+  selectedStartDate.setHours(0, 0, 0, 0);
 
+  if (selectedStartDate < today) {
+    newErrors.startDate = "Start date cannot be in the past.";
+  }
+}
+
+if (!trip.endDate) {
+  newErrors.endDate = "End date is required.";
+}
   if (
     trip.startDate &&
     trip.endDate &&
@@ -89,8 +100,13 @@ try {
     body: JSON.stringify(trip),
   });
 
-  const data = await response.json();
-  console.log(data);
+ const data = await response.json();
+
+if (!response.ok) {
+  throw new Error(
+    data.detail || "Failed to generate your trip."
+  );
+}
 
 setGeneratedTrip(data.trip);
 setItinerary(data.itinerary);
@@ -142,8 +158,8 @@ const preferences = [
     text-white
   "
 >
-      <Container>
-        <div className="max-w-7xl mx-auto px-6">
+      <Container className="max-w-none">
+        <div className="w-full">
           <Navbar />
 
             <HeroSection />
@@ -204,12 +220,13 @@ const preferences = [
                   Start Date
                 </label>
                 <input
-                  type="date"
-                  name="startDate"
-                  value={trip.startDate}
-                  onChange={handleChange}
-                  className="w-full mt-2 border rounded-lg px-4 py-3"
-                />
+                type="date"
+                name="startDate"
+                value={trip.startDate}
+                min={new Date().toISOString().split("T")[0]}
+                onChange={handleChange}
+                className="w-full mt-2 border rounded-lg px-4 py-3"
+/>
                 {errors.startDate && (
                 <p className="text-red-500 text-sm mt-1">
                 {errors.startDate}
@@ -222,12 +239,13 @@ const preferences = [
                   End Date
                 </label>
                 <input
-                  type="date"
-                  name="endDate"
-                  value={trip.endDate}
-                  onChange={handleChange}
-                  className="w-full mt-2 border rounded-lg px-4 py-3"
-                />
+                type="date"
+                name="endDate"
+                value={trip.endDate}
+                min={trip.startDate || new Date().toISOString().split("T")[0]}
+                onChange={handleChange}
+                className="w-full mt-2 border rounded-lg px-4 py-3"
+/>              
                 {errors.endDate && (
                 <p className="text-red-500 text-sm mt-1">
                 {errors.endDate}
@@ -348,6 +366,11 @@ const preferences = [
             >
             {loading ? "Generating AI Plan..." : "Generate AI Plan"}
             </Button>
+            {loading && (
+    <div className="mt-8">
+        <AgentFlow />
+    </div>
+)}
 
           </form>
 
@@ -395,9 +418,11 @@ const preferences = [
       ✨ AI Travel Itinerary
     </h2>
 
-    <pre className="whitespace-pre-wrap text-gray-200">
-      {itinerary}
-    </pre>
+    <div className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-gray-200 prose-strong:text-white prose-li:text-gray-200 prose-table:text-gray-200">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {itinerary}
+      </ReactMarkdown>
+    </div>
   </div>
 )}
 
