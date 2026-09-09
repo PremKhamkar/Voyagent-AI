@@ -17,7 +17,10 @@ function Navbar() {
     >
       {/* Logo */}
 
-      <div className="flex items-center gap-2">
+      <Link
+        to="/"
+        className="flex items-center gap-2"
+      >
         <div
           className="
             flex h-10 w-10 items-center justify-center
@@ -31,22 +34,31 @@ function Navbar() {
         <h1 className="text-xl font-bold">
           Voyagent AI
         </h1>
-      </div>
+      </Link>
 
       {/* Navigation links */}
 
       <div className="hidden gap-8 md:flex">
-        <a href="#features" className="text-gray-300 hover:text-white">
+        <Link
+          to="/#features"
+          className="text-gray-300 transition hover:text-white"
+        >
           Features
-        </a>
+        </Link>
 
-        <a href="#destinations" className="text-gray-300 hover:text-white">
+        <Link
+          to="/#destinations"
+          className="text-gray-300 transition hover:text-white"
+        >
           Destinations
-        </a>
+        </Link>
 
-        <a href="#about" className="text-gray-300 hover:text-white">
+        <Link
+          to="/#about"
+          className="text-gray-300 transition hover:text-white"
+        >
           About
-        </a>
+        </Link>
       </div>
 
       {/* Buttons */}
@@ -62,9 +74,13 @@ function Navbar() {
         <Link
           to="/register"
           className="
-            rounded-xl bg-cyan-500
-            px-5 py-2 font-semibold
-            transition hover:bg-cyan-400
+            rounded-xl
+            bg-cyan-500
+            px-5
+            py-2
+            font-semibold
+            transition
+            hover:bg-cyan-400
           "
         >
           Get Started

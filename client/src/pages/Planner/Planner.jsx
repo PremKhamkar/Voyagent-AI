@@ -1,27 +1,25 @@
-import HeroSection from "../../components/hero/HeroSection";
-import Navbar from "../../components/navbar/Navbar";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
 import AgentFlow from "../../components/planner/AgentFlow";
 import WeatherCard from "../../components/cards/WeatherCard";
 import BudgetCard from "../../components/cards/BudgetCard";
 import AttractionCard from "../../components/cards/AttractionCard";
 import AccommodationCard from "../../components/cards/AccommodationCard";
-import ItineraryCard from "../../components/cards/ItineraryCard";
-import { useState } from "react";
-import Button from "../../components/ui/Button";
-import Container from "../../components/ui/Container";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 function Planner() {
   const [trip, setTrip] = useState({
-  destination: "",
-  startDate: "",
-  endDate: "",
-  budget: "",
-  travelers: 1,
-  travelType: "Solo",
-  preferences: [],
-});
+    sourceCity: "",
+    destination: "",
+    startDate: "",
+    endDate: "",
+    budget: "",
+    travelers: 1,
+    travelType: "Leisure",
+    preferences: [],
+  });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -29,417 +27,941 @@ function Planner() {
   const [generatedTrip, setGeneratedTrip] = useState(null);
   const [itinerary, setItinerary] = useState(null);
 
+  const [weatherInfo, setWeatherInfo] = useState("");
+  const [budgetPlan, setBudgetPlan] = useState("");
+  const [destinationPlan, setDestinationPlan] = useState("");
+  const [accommodationPlan, setAccommodationPlan] = useState("");
+
+  const preferences = [
+    "Culture",
+    "Food",
+    "Beaches",
+    "Adventure",
+    "Shopping",
+    "Historical",
+    "Relaxation",
+    "Nightlife",
+  ];
+
   function handleChange(event) {
     const { name, value } = event.target;
 
-    setTrip((prev) => ({
-      ...prev,
+    setTrip((previous) => ({
+      ...previous,
       [name]: value,
     }));
+
+    setErrors((previous) => ({
+      ...previous,
+      [name]: "",
+    }));
+  }
+
+  function handlePreferenceChange(preference) {
+    setTrip((previous) => {
+      const alreadySelected =
+        previous.preferences.includes(preference);
+
+      return {
+        ...previous,
+        preferences: alreadySelected
+          ? previous.preferences.filter(
+              (item) => item !== preference
+            )
+          : [...previous.preferences, preference],
+      };
+    });
   }
 
   async function handleSubmit(event) {
-  event.preventDefault();
+    event.preventDefault();
 
-  const newErrors = {};
+    const newErrors = {};
 
-  if (!trip.destination.trim()) {
-    newErrors.destination = "Destination is required.";
+    if (!trip.sourceCity.trim()) {
+      newErrors.sourceCity = "Source city is required.";
+    }
+
+    if (!trip.destination.trim()) {
+      newErrors.destination =
+        "Destination is required.";
+    }
+
+    if (!trip.startDate) {
+      newErrors.startDate =
+        "Start date is required.";
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const selectedStartDate = new Date(
+        trip.startDate
+      );
+      selectedStartDate.setHours(0, 0, 0, 0);
+
+      if (selectedStartDate < today) {
+        newErrors.startDate =
+          "Start date cannot be in the past.";
+      }
+    }
+
+    if (!trip.endDate) {
+      newErrors.endDate =
+        "End date is required.";
+    }
+
+    if (
+      trip.startDate &&
+      trip.endDate &&
+      trip.endDate < trip.startDate
+    ) {
+      newErrors.endDate =
+        "End date cannot be before start date.";
+    }
+
+    if (
+      !trip.budget ||
+      Number(trip.budget) <= 0
+    ) {
+      newErrors.budget =
+        "Budget must be greater than 0.";
+    }
+
+    if (Number(trip.travelers) < 1) {
+      newErrors.travelers =
+        "At least 1 traveler is required.";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
+    setLoading(true);
+
+    setGeneratedTrip(null);
+    setItinerary(null);
+    setWeatherInfo("");
+    setBudgetPlan("");
+    setDestinationPlan("");
+    setAccommodationPlan("");
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/generate-trip",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(trip),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            "Failed to generate your trip."
+        );
+      }
+
+      setGeneratedTrip(data.trip);
+      setItinerary(data.itinerary);
+
+      setWeatherInfo(
+        data.weather_info || ""
+      );
+      setBudgetPlan(
+        data.budget_plan || ""
+      );
+      setDestinationPlan(
+        data.destination_plan || ""
+      );
+      setAccommodationPlan(
+        data.accommodation_plan || ""
+      );
+    } catch (error) {
+      console.error("Error:", error);
+
+      setErrors({
+        submit:
+          error.message ||
+          "Something went wrong. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
-  if (!trip.startDate) {
-  newErrors.startDate = "Start date is required.";
-} else {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const selectedStartDate = new Date(trip.startDate);
-  selectedStartDate.setHours(0, 0, 0, 0);
-
-  if (selectedStartDate < today) {
-    newErrors.startDate = "Start date cannot be in the past.";
-  }
-}
-
-if (!trip.endDate) {
-  newErrors.endDate = "End date is required.";
-}
-  if (
-    trip.startDate &&
-    trip.endDate &&
-    trip.endDate < trip.startDate
-  ) {
-    newErrors.endDate =
-      "End date cannot be before start date.";
-  }
-
-  if (!trip.budget || Number(trip.budget) <= 0) {
-    newErrors.budget =
-      "Budget must be greater than 0.";
-  }
-
-  if (Number(trip.travelers) < 1) {
-    newErrors.travelers =
-      "At least 1 traveler is required.";
-  }
-
-  setErrors(newErrors);
-
-if (Object.keys(newErrors).length > 0) {
-  return;
-}
-
-setLoading(true);
-
-try {
-  const response = await fetch("http://127.0.0.1:8000/generate-trip", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(trip),
-  });
-
- const data = await response.json();
-
-if (!response.ok) {
-  throw new Error(
-    data.detail || "Failed to generate your trip."
-  );
-}
-
-setGeneratedTrip(data.trip);
-setItinerary(data.itinerary);
-
-} catch (error) {
-  console.error("Error:", error);
-
-} finally {
-  setLoading(false);
-}
-}
-
-function handlePreferenceChange(event) {
-  const { value, checked } = event.target;
-
-  if (checked) {
-    setTrip((prev) => ({
-      ...prev,
-      preferences: [...prev.preferences, value],
-    }));
-  } else {
-    setTrip((prev) => ({
-      ...prev,
-      preferences: prev.preferences.filter(
-        (item) => item !== value
-      ),
-    }));
-  }
-}
-const preferences = [
-  "Adventure",
-  "Beach",
-  "Nature",
-  "Food",
-  "Luxury",
-  "Shopping",
-  "Historical",
-  "Nightlife",
-];
   return (
-    <div
-  className="
-    min-h-screen
-    bg-gradient-to-br
-    from-slate-900
-    via-cyan-900
-    to-slate-950
-    py-10
-    text-white
-  "
->
-      <Container className="max-w-none">
-        <div className="w-full">
-          <Navbar />
+    <div className="min-h-screen bg-slate-100 text-slate-900">
 
-            <HeroSection />
+      {/* Header */}
 
-              <div
-                className="
-                  rounded-3xl
-                  border
-                  border-white/10
-                  bg-white/10
-                  backdrop-blur-lg
-                  p-8
-                  shadow-2xl
-                  "
-              >
-
-            <form onSubmit={handleSubmit} className="space-y-8">              
-
-            <div>
-              <label className="font-medium">
-                Destination
-              </label>
-              <input
-                type="text"
-                name="destination"
-                value={trip.destination}
-                onChange={handleChange}
-                placeholder="e.g. Japan"
-                className="
-                w-full
-                mt-2
-                rounded-xl
-                border
-                border-white/20
-                bg-slate-800
-                px-4
-                py-3
-                text-white
-                outline-none
-                focus:border-cyan-400
-                "
-                
-              />
-             
-              
-              {errors.destination && (
-              <p className="text-red-500 text-sm mt-1">
-              {errors.destination}
-              </p>
-              )}
-            </div>
-            
-
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="font-medium">
-                  Start Date
-                </label>
-                <input
-                type="date"
-                name="startDate"
-                value={trip.startDate}
-                min={new Date().toISOString().split("T")[0]}
-                onChange={handleChange}
-                className="w-full mt-2 border rounded-lg px-4 py-3"
-/>
-                {errors.startDate && (
-                <p className="text-red-500 text-sm mt-1">
-                {errors.startDate}
-                </p>
-                )}
-              </div>
-
-              <div>
-                <label className="font-medium">
-                  End Date
-                </label>
-                <input
-                type="date"
-                name="endDate"
-                value={trip.endDate}
-                min={trip.startDate || new Date().toISOString().split("T")[0]}
-                onChange={handleChange}
-                className="w-full mt-2 border rounded-lg px-4 py-3"
-/>              
-                {errors.endDate && (
-                <p className="text-red-500 text-sm mt-1">
-                {errors.endDate}
-                </p>
-                )}
-              </div>
-
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="font-medium">
-                  Budget (₹)
-                </label>
-                <input
-                  type="number"
-                  name="budget"
-                  value={trip.budget}
-                  onChange={handleChange}
-                  placeholder="50000"
-                  className="w-full mt-2 border rounded-lg px-4 py-3"
-                />
-                {errors.budget && (
-                <p className="text-red-500 text-sm mt-1">
-                {errors.budget}
-                </p>
-                )}
-              </div>
-
-              <div>
-                <label className="font-medium">
-                  Travelers
-                </label>
-                <input
-                  type="number"
-                  name="travelers"
-                  value={trip.travelers}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full mt-2 border rounded-lg px-4 py-3"
-                />
-                {errors.travelers && (
-                <p className="text-red-500 text-sm mt-1">
-                {errors.travelers}
-                </p>
-                )}
-              </div>
-
-            </div>
-
-            <div>
-              <label className="font-medium">
-                Travel Type
-              </label>
-
-              <select
-              name="travelType"
-              value={trip.travelType}
-              onChange={handleChange}
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <Link
+            to="/"
+            className="flex items-center gap-3"
+          >
+            <div
               className="
-              w-full
-              mt-2
-              rounded-xl
-              border
-              border-white/20
-              bg-slate-800
-              px-4
-              py-3
-              text-white
-              outline-none
-              focus:border-cyan-400
-              "
-              >
-    <option value="Solo">Solo</option>
-    <option value="Couple">Couple</option>
-    <option value="Family">Family</option>
-    <option value="Friends">Friends</option>
-    <option value="Business">Business</option>
-</select>                                                                                   
-            </div>
-
-            <div>
-  <label className="font-medium block mb-3">
-    Trip Preferences
-  </label>
-
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-    {preferences.map((item) => (
-      <label
-        key={item}
-        className="flex items-center gap-2"
-      >
-        <input
-          type="checkbox"
-          value={item}
-          onChange={handlePreferenceChange}
-        />
-
-        {item}
-      </label>
-    ))}
-  </div>
-</div>
-
-            <Button
-            type="submit"
-            disabled={loading}
-            className="
-              w-full
-              rounded-xl
-              bg-cyan-500
-              py-4
-              font-semibold
-              transition
-              hover:scale-[1.01]
-              hover:bg-cyan-600
+                flex h-10 w-10
+                items-center justify-center
+                rounded-xl
+                bg-gradient-to-r
+                from-cyan-500
+                to-blue-600
+                text-lg
               "
             >
-            {loading ? "Generating AI Plan..." : "Generate AI Plan"}
-            </Button>
-            {loading && (
-    <div className="mt-8">
-        <AgentFlow />
-    </div>
-)}
+              ✈️
+            </div>
 
-          </form>
+            <span className="text-xl font-bold text-slate-800">
+              Voyagent AI
+            </span>
+          </Link>
+
+          <Link
+            to="/"
+            className="
+              text-sm
+              font-medium
+              text-slate-500
+              transition
+              hover:text-slate-900
+            "
+          >
+            Back to Home
+          </Link>
+        </div>
+      </header>
+
+      {/* Planner */}
+
+      <main className="px-6 py-10">
+
+        <div className="mx-auto max-w-6xl">
+
+          {/* Form Card */}
+
+          <div
+            className="
+              rounded-3xl
+              border
+              border-slate-200
+              bg-white
+              p-8
+              shadow-sm
+            "
+          >
+
+            <div className="mb-8">
+              <h1 className="flex items-center gap-3 text-2xl font-bold text-slate-800">
+                <span>✈️</span>
+                Enter Travel Requirements
+              </h1>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Tell us about your trip and let Voyagent AI
+                create a personalized travel plan.
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-6"
+            >
+
+              {/* Source + Destination */}
+
+              <div className="grid gap-6 md:grid-cols-2">
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    From (Source City)
+                  </label>
+
+                  <input
+                    type="text"
+                    name="sourceCity"
+                    value={trip.sourceCity}
+                    onChange={handleChange}
+                    placeholder="e.g. Pune"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  />
+
+                  {errors.sourceCity && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.sourceCity}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Destination City / Country *
+                  </label>
+
+                  <input
+                    type="text"
+                    name="destination"
+                    value={trip.destination}
+                    onChange={handleChange}
+                    placeholder="e.g. Goa, Japan, Paris"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  />
+
+                  {errors.destination && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.destination}
+                    </p>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Dates */}
+
+              <div className="grid gap-6 md:grid-cols-2">
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Start Date *
+                  </label>
+
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={trip.startDate}
+                    min={
+                      new Date()
+                        .toISOString()
+                        .split("T")[0]
+                    }
+                    onChange={handleChange}
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  />
+
+                  {errors.startDate && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.startDate}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    End Date *
+                  </label>
+
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={trip.endDate}
+                    min={
+                      trip.startDate ||
+                      new Date()
+                        .toISOString()
+                        .split("T")[0]
+                    }
+                    onChange={handleChange}
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  />
+
+                  {errors.endDate && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.endDate}
+                    </p>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Budget + Travelers + Travel Style */}
+
+              <div className="grid gap-6 md:grid-cols-3">
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Budget (₹) *
+                  </label>
+
+                  <input
+                    type="number"
+                    name="budget"
+                    value={trip.budget}
+                    onChange={handleChange}
+                    placeholder="50000"
+                    min="1"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  />
+
+                  {errors.budget && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.budget}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Travelers
+                  </label>
+
+                  <input
+                    type="number"
+                    name="travelers"
+                    value={trip.travelers}
+                    onChange={handleChange}
+                    min="1"
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  />
+
+                  {errors.travelers && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.travelers}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Travel Style
+                  </label>
+
+                  <select
+                    name="travelType"
+                    value={trip.travelType}
+                    onChange={handleChange}
+                    className="
+                      w-full
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-3
+                      text-slate-800
+                      outline-none
+                      transition
+                      focus:border-cyan-500
+                      focus:ring-2
+                      focus:ring-cyan-100
+                    "
+                  >
+                    <option value="Leisure">
+                      Leisure
+                    </option>
+                    <option value="Solo">
+                      Solo
+                    </option>
+                    <option value="Couple">
+                      Couple
+                    </option>
+                    <option value="Family">
+                      Family
+                    </option>
+                    <option value="Friends">
+                      Friends
+                    </option>
+                    <option value="Business">
+                      Business
+                    </option>
+                  </select>
+                </div>
+
+              </div>
+
+              {/* Preferences */}
+
+              <div>
+                <label className="mb-3 block text-sm font-medium text-slate-700">
+                  Trip Preferences & Interests
+                </label>
+
+                <div className="flex flex-wrap gap-2">
+
+                  {preferences.map((preference) => {
+                    const selected =
+                      trip.preferences.includes(
+                        preference
+                      );
+
+                    return (
+                      <button
+                        key={preference}
+                        type="button"
+                        onClick={() =>
+                          handlePreferenceChange(
+                            preference
+                          )
+                        }
+                        className={`
+                          rounded-xl
+                          px-4
+                          py-2
+                          text-sm
+                          font-medium
+                          transition
+                          ${
+                            selected
+                              ? "bg-teal-500 text-white shadow-sm"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }
+                        `}
+                      >
+                        {selected ? "✓ " : "+ "}
+                        {preference}
+                      </button>
+                    );
+                  })}
+
+                </div>
+              </div>
+
+              {/* Submit Error */}
+
+              {errors.submit && (
+                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {errors.submit}
+                </div>
+              )}
+
+              {/* Generate Button */}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="
+                  w-full
+                  rounded-xl
+                  bg-gradient-to-r
+                  from-teal-500
+                  to-blue-600
+                  px-6
+                  py-4
+                  font-semibold
+                  text-white
+                  shadow-sm
+                  transition
+                  hover:scale-[1.01]
+                  hover:shadow-md
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
+                "
+              >
+                {loading
+                  ? "Generating AI Travel Plan..."
+                  : "⚡ Generate AI Travel Plan"}
+              </button>
+
+              {/* Agent Flow */}
+
+              {loading && (
+                <div className="pt-2">
+                  <AgentFlow />
+                </div>
+              )}
+
+            </form>
 
           </div>
 
+          {/* Generated Trip */}
+
           {generatedTrip && (
-  <div className="mt-8 rounded-3xl bg-slate-800 p-6">
-    <h2 className="text-2xl font-bold mb-4">
-      🗺️ Generated Trip Summary
-    </h2>
+            <div
+              className="
+                mt-8
+                rounded-3xl
+                border
+                border-slate-200
+                bg-white
+                p-6
+                shadow-sm
+              "
+            >
+              <h2 className="mb-5 text-2xl font-bold text-slate-800">
+                🗺️ Generated Trip Summary
+              </h2>
 
-    <p>
-      <strong>🌍 Destination:</strong>{" "}
-      {generatedTrip.destination}
-    </p>
+              <div className="grid gap-4 md:grid-cols-2">
 
-    <p>
-      <strong>📅 Dates:</strong>{" "}
-      {generatedTrip.startDate} → {generatedTrip.endDate}
-    </p>
+                <p>
+                  <strong>🌍 From:</strong>{" "}
+                  {generatedTrip.sourceCity}
+                </p>
 
-    <p>
-      <strong>💰 Budget:</strong> ₹{generatedTrip.budget}
-    </p>
+                <p>
+                  <strong>📍 Destination:</strong>{" "}
+                  {generatedTrip.destination}
+                </p>
 
-    <p>
-      <strong>👥 Travelers:</strong>{" "}
-      {generatedTrip.travelers}
-    </p>
+                <p>
+                  <strong>📅 Dates:</strong>{" "}
+                  {generatedTrip.startDate} →{" "}
+                  {generatedTrip.endDate}
+                </p>
 
-    <p>
-      <strong>❤️ Travel Type:</strong>{" "}
-      {generatedTrip.travelType}
-    </p>
+                <p>
+                  <strong>💰 Budget:</strong>{" "}
+                  ₹{generatedTrip.budget}
+                </p>
 
-    <p>
-      <strong>🎯 Preferences:</strong>{" "}
-      {generatedTrip.preferences.join(", ")}
-    </p>
-  </div>
-)}
-{itinerary && (
-  <div className="mt-8 rounded-3xl bg-slate-800 p-6">
-    <h2 className="text-2xl font-bold mb-4">
-      ✨ AI Travel Itinerary
-    </h2>
+                <p>
+                  <strong>👥 Travelers:</strong>{" "}
+                  {generatedTrip.travelers}
+                </p>
 
-    <div className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-gray-200 prose-strong:text-white prose-li:text-gray-200 prose-table:text-gray-200">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <p>
+                  <strong>✈️ Travel Style:</strong>{" "}
+                  {generatedTrip.travelType}
+                </p>
+
+                <p className="md:col-span-2">
+                  <strong>🎯 Preferences:</strong>{" "}
+                  {generatedTrip.preferences?.join(
+                    ", "
+                  ) || "None selected"}
+                </p>
+
+              </div>
+            </div>
+          )}
+
+          {/* AI Itinerary */}
+
+          {itinerary && (
+  <div
+    className="
+      mt-8
+      overflow-hidden
+      rounded-3xl
+      border
+      border-slate-200
+      bg-white
+      shadow-sm
+    "
+  >
+    {/* Itinerary Header */}
+
+    <div
+      className="
+        border-b
+        border-slate-200
+        bg-gradient-to-r
+        from-teal-50
+        to-blue-50
+        px-6
+        py-6
+      "
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className="
+            flex
+            h-12
+            w-12
+            shrink-0
+            items-center
+            justify-center
+            rounded-2xl
+            bg-gradient-to-r
+            from-teal-500
+            to-blue-600
+            text-xl
+            text-white
+            shadow-sm
+          "
+        >
+          ✨
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">
+            Your AI Travel Itinerary
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            A personalized day-by-day plan created for your trip.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Itinerary Content */}
+
+    <div className="p-6 md:p-8">
+
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+
+          /* Day heading */
+
+          h2: ({ children }) => (
+            <div
+              className="
+                mt-8
+                mb-6
+                overflow-hidden
+                rounded-2xl
+                border
+                border-slate-200
+                bg-slate-50
+                first:mt-0
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  bg-gradient-to-r
+                  from-teal-500
+                  to-blue-600
+                  px-5
+                  py-4
+                  text-white
+                "
+              >
+                <div
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-white/20
+                    font-bold
+                  "
+                >
+                  📅
+                </div>
+
+                <h3 className="text-lg font-bold">
+                  {children}
+                </h3>
+              </div>
+            </div>
+          ),
+
+          /* Morning / Afternoon / Evening */
+
+          h3: ({ children }) => {
+            const text = String(children);
+
+            let icon = "📍";
+
+            if (text.includes("Morning")) {
+              icon = "🌅";
+            } else if (text.includes("Afternoon")) {
+              icon = "☀️";
+            } else if (text.includes("Evening")) {
+              icon = "🌆";
+            } else if (text.includes("Estimated")) {
+              icon = "💰";
+            } else if (text.includes("Travel Tip")) {
+              icon = "💡";
+            }
+
+            return (
+              <div
+                className="
+                  mt-6
+                  mb-3
+                  flex
+                  items-center
+                  gap-2
+                  text-base
+                  font-bold
+                  text-slate-800
+                "
+              >
+                <span>{icon}</span>
+                <span>{children}</span>
+              </div>
+            );
+          },
+
+          /* Paragraph */
+
+          p: ({ children }) => (
+            <p className="mb-3 text-sm leading-7 text-slate-600">
+              {children}
+            </p>
+          ),
+
+          /* Strong text */
+
+          strong: ({ children }) => (
+            <strong className="font-semibold text-slate-800">
+              {children}
+            </strong>
+          ),
+
+          /* Lists */
+
+          ul: ({ children }) => (
+            <ul className="mb-4 space-y-2 pl-5 text-sm text-slate-600">
+              {children}
+            </ul>
+          ),
+
+          li: ({ children }) => (
+            <li className="leading-6">
+              {children}
+            </li>
+          ),
+
+          /* Links */
+
+          a: ({ children, href }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="
+                font-medium
+                text-cyan-600
+                underline
+                decoration-cyan-300
+                underline-offset-2
+                hover:text-cyan-700
+              "
+            >
+              {children}
+            </a>
+          ),
+        }}
+      >
         {itinerary}
       </ReactMarkdown>
+
     </div>
   </div>
 )}
 
-<div className="grid gap-6 mt-8">
-    <WeatherCard />
+          {/* AI Planning Cards */}
 
-    <BudgetCard />
+          {(weatherInfo ||
+            budgetPlan ||
+            destinationPlan ||
+            accommodationPlan) && (
+            <div className="mt-8 grid gap-6">
 
-    <AttractionCard />
+              <WeatherCard
+                content={weatherInfo}
+              />
 
-    <AccommodationCard />
+              <BudgetCard
+                content={budgetPlan}
+              />
 
-    <ItineraryCard />
-</div>
+              <AttractionCard
+                content={destinationPlan}
+              />
+
+              <AccommodationCard
+                content={accommodationPlan}
+              />
+
+            </div>
+          )}
 
         </div>
-      </Container>
+
+      </main>
     </div>
   );
 }

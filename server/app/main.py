@@ -31,27 +31,32 @@ def home():
 def generate_trip(trip: TripRequest):
 
     try:
-        result = travel_graph.invoke({
-            "destination": trip.destination,
-            "start_date": str(trip.startDate),
-            "end_date": str(trip.endDate),
-            "budget": trip.budget,
-            "travelers": trip.travelers,
-            "travel_type": trip.travelType,
-            "preferences": trip.preferences,
-            "destination_plan": "",
-            "budget_plan": "",
-            "accommodation_plan": "",
-            "itinerary": ""
-        })
+       result = travel_graph.invoke({
+    "source_city": trip.sourceCity,
+    "destination": trip.destination,
+    "start_date": str(trip.startDate),
+    "end_date": str(trip.endDate),
+    "budget": trip.budget,
+    "travelers": trip.travelers,
+    "travel_type": trip.travelType,
+    "preferences": trip.preferences,
+    "destination_plan": "",
+    "budget_plan": "",
+    "accommodation_plan": "",
+    "itinerary": "",
+    "weather_info": ""
+})
 
-        return {
-            "status": "success",
-            "message": "AI itinerary generated successfully!",
-            "trip": trip,
-            "itinerary": result["itinerary"]
-        }
-
+       return {
+    "status": "success",
+    "message": "AI itinerary generated successfully!",
+    "trip": trip,
+    "weather_info": result.get("weather_info", ""),
+    "budget_plan": result.get("budget_plan", ""),
+    "destination_plan": result.get("destination_plan", ""),
+    "accommodation_plan": result.get("accommodation_plan", ""),
+    "itinerary": result.get("itinerary", "")
+}
     except Exception as e:
         print("ERROR:", e)
 

@@ -12,17 +12,19 @@ function HowItWorks() {
     {
       number: "2",
       title: "AI Plans Your Trip",
-      description: "Voyagent AI creates a personalized itinerary.",
+      description:
+        "Voyagent AI creates a personalized itinerary.",
     },
     {
       number: "3",
       title: "Travel & Enjoy",
-      description: "Explore your destination and download your itinerary.",
+      description:
+        "Explore your destination and download your itinerary.",
     },
   ];
 
   return (
-    <section className="bg-white py-24">
+    <section id="about" className="bg-white py-24">
       <Container>
         <SectionTitle
           title="Plan Your Journey in Three Steps"
