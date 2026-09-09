@@ -54,6 +54,8 @@ function Login({
 
       if (rememberMe) {
         localStorage.setItem("rememberMe", "true");
+      } else {
+        localStorage.removeItem("rememberMe");
       }
 
       setIsLoading(false);
@@ -63,13 +65,75 @@ function Login({
 
   return (
     <AuthLayout isModal={isModal}>
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+          Welcome Back
+        </h2>
+
+        <p className="mt-2 text-sm text-slate-500">
+          Sign in to continue your journey.
+        </p>
+      </div>
+
+      {/* Social Login */}
+
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          className="
+            flex h-11 items-center justify-center gap-2
+            rounded-xl border border-slate-200
+            bg-white
+            text-sm font-medium text-slate-700
+            shadow-sm
+            transition
+            hover:bg-slate-50
+          "
+        >
+          <span className="text-base font-bold text-blue-600">
+            f
+          </span>
+          Facebook
+        </button>
+
+        <button
+          type="button"
+          className="
+            flex h-11 items-center justify-center gap-2
+            rounded-xl border border-slate-200
+            bg-white
+            text-sm font-medium text-slate-700
+            shadow-sm
+            transition
+            hover:bg-slate-50
+          "
+        >
+          <span className="text-base font-bold">
+            G
+          </span>
+          Google
+        </button>
+      </div>
+
+      {/* Divider */}
+
+      <div className="mb-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200" />
+
+        <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          or
+        </span>
+
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+
       <form
-  onSubmit={handleSignIn}
-  className="mx-auto w-full max-w-[390px] space-y-7"
->
+        onSubmit={handleSignIn}
+        className="space-y-5"
+      >
         {/* Email */}
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-slate-700">
             Email Address
           </label>
@@ -93,7 +157,7 @@ function Login({
 
         {/* Password */}
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-slate-700">
             Password
           </label>
@@ -122,8 +186,8 @@ function Login({
                 text-sm
                 font-medium
                 text-slate-500
-                transition-colors
-                hover:text-slate-800
+                transition
+                hover:text-cyan-600
               "
             >
               {showPassword ? "Hide" : "Show"}
@@ -156,7 +220,7 @@ function Login({
               "
             />
 
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-slate-500">
               Remember me
             </span>
           </label>
@@ -167,7 +231,7 @@ function Login({
               text-sm
               font-medium
               text-cyan-600
-              transition-colors
+              transition
               hover:text-cyan-700
               hover:underline
             "
@@ -176,23 +240,23 @@ function Login({
           </button>
         </div>
 
-        {/* Sign In Button */}
+        {/* Sign In */}
 
         <Button
           type="submit"
           disabled={isLoading}
           className="
-            mt-2
             h-12
-            w-56
+            w-full
             rounded-xl
             bg-cyan-500
             text-white
-            shadow-sm
+            shadow-md
             transition-all
             duration-200
+            hover:-translate-y-0.5
             hover:bg-cyan-600
-            hover:shadow-md
+            hover:shadow-lg
             disabled:cursor-not-allowed
             disabled:opacity-60
           "
@@ -202,17 +266,23 @@ function Login({
 
         {/* Sign Up */}
 
-        <div className="pt-1 text-center">
+        <div className="pt-2 text-center">
           <p className="text-sm text-slate-500">
             Don't have an account?{" "}
 
             <button
               type="button"
-              onClick={switchToRegister}
+              onClick={() => {
+              if (switchToRegister) {
+                          switchToRegister();
+              } else {
+                navigate("/register");
+              }
+            }}            
               className="
                 font-semibold
                 text-cyan-600
-                transition-colors
+                transition
                 hover:text-cyan-700
                 hover:underline
               "

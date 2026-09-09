@@ -1,8 +1,8 @@
-import Button from "../ui/Button";
+import { Link } from "react-router-dom";
 import Container from "../ui/Container";
 import { useEffect, useState } from "react";
 
-function Hero({ openAuth }) {
+function Hero() {
   const images = [
     "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1600",
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600",
@@ -23,22 +23,25 @@ function Hero({ openAuth }) {
   return (
     <section className="relative overflow-hidden">
       {/* Background image */}
+
       <div
         className="
-absolute inset-0
-w-full h-full
-bg-cover bg-center
-transition-all duration-1000
-"
+          absolute inset-0
+          h-full w-full
+          bg-cover bg-center
+          transition-all duration-1000
+        "
         style={{
           backgroundImage: `url(${images[currentImage]})`,
         }}
       />
 
       {/* Overlay */}
+
       <div className="absolute inset-0 bg-black/35" />
 
       {/* Content */}
+
       <div className="relative z-10">
         <Container>
           <div className="flex min-h-[700px] items-center">
@@ -59,15 +62,54 @@ transition-all duration-1000
               </p>
 
               <div className="mt-8 flex gap-4">
-                <Button
-                onClick={openAuth}
-                className="bg-teal-500 text-white hover:bg-teal-600"
+                {/* Start Planning */}
+
+                <Link
+                  to="/register"
+                  className="
+                    inline-flex
+                    h-14
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    bg-teal-500
+                    px-8
+                    font-semibold
+                    text-white
+                    shadow-lg
+                    transition-all
+                    duration-300
+                    hover:-translate-y-0.5
+                    hover:bg-teal-600
+                    hover:shadow-xl
+                  "
                 >
-                Start Planning
-                </Button>
-                <Button className="border border-white bg-white/10 text-white hover:bg-white/20">
+                  Start Planning
+                </Link>
+
+                {/* Learn More */}
+
+                <a
+                  href="#features"
+                  className="
+                    inline-flex
+                    h-14
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    border
+                    border-white
+                    bg-white/10
+                    px-8
+                    font-semibold
+                    text-white
+                    transition-all
+                    duration-300
+                    hover:bg-white/20
+                  "
+                >
                   Learn More
-                </Button>
+                </a>
               </div>
             </div>
           </div>
