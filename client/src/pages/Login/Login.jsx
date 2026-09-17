@@ -16,6 +16,7 @@ function Login({
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [loginError, setLoginError] = useState("");
 
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,13 +28,18 @@ function Login({
 
     setEmailError("");
     setPasswordError("");
+    setLoginError("");
 
     let isValid = true;
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail) {
       setEmailError("Email is required.");
       isValid = false;
-    } else if (!email.includes("@")) {
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)
+    ) {
       setEmailError("Please enter a valid email address.");
       isValid = false;
     }
@@ -50,7 +56,33 @@ function Login({
     setIsLoading(true);
 
     setTimeout(() => {
+      const users = JSON.parse(
+        localStorage.getItem("voyagent_users") || "{}"
+      );
+
+      const user = users[trimmedEmail];
+
+      if (!user) {
+        setLoginError(
+          "No account found with this email address."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      if (user.password !== password) {
+        setPasswordError("Incorrect password.");
+        setIsLoading(false);
+        return;
+      }
+
+      /*
+       * Create the active session.
+       * These values identify which account is currently logged in.
+       */
       localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userName", user.name);
+      localStorage.setItem("userEmail", user.email);
 
       if (rememberMe) {
         localStorage.setItem("rememberMe", "true");
@@ -59,7 +91,8 @@ function Login({
       }
 
       setIsLoading(false);
-      navigate("/dashboard");
+
+      navigate("/", { replace: true });
     }, 1000);
   }
 
@@ -145,6 +178,7 @@ function Login({
             onChange={(event) => {
               setEmail(event.target.value);
               setEmailError("");
+              setLoginError("");
             }}
           />
 
@@ -164,19 +198,24 @@ function Login({
 
           <div className="relative">
             <Input
-              type={showPassword ? "text" : "password"}
+              type={
+                showPassword ? "text" : "password"
+              }
               placeholder="Enter your password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
                 setPasswordError("");
+                setLoginError("");
               }}
             />
 
             <button
               type="button"
               onClick={() =>
-                setShowPassword((previous) => !previous)
+                setShowPassword(
+                  (previous) => !previous
+                )
               }
               className="
                 absolute
@@ -201,6 +240,16 @@ function Login({
           )}
         </div>
 
+        {/* Login Error */}
+
+        {loginError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-600">
+              {loginError}
+            </p>
+          </div>
+        )}
+
         {/* Remember Me / Forgot Password */}
 
         <div className="flex items-center justify-between">
@@ -209,7 +258,9 @@ function Login({
               type="checkbox"
               checked={rememberMe}
               onChange={(event) =>
-                setRememberMe(event.target.checked)
+                setRememberMe(
+                  event.target.checked
+                )
               }
               className="
                 h-4
@@ -261,7 +312,9 @@ function Login({
             disabled:opacity-60
           "
         >
-          {isLoading ? "Signing In..." : "Sign In"}
+          {isLoading
+            ? "Signing In..."
+            : "Sign In"}
         </Button>
 
         {/* Sign Up */}
@@ -273,12 +326,12 @@ function Login({
             <button
               type="button"
               onClick={() => {
-              if (switchToRegister) {
-                          switchToRegister();
-              } else {
-                navigate("/register");
-              }
-            }}            
+                if (switchToRegister) {
+                  switchToRegister();
+                } else {
+                  navigate("/register");
+                }
+              }}
               className="
                 font-semibold
                 text-cyan-600

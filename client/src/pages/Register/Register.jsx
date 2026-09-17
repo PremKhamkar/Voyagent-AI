@@ -14,61 +14,74 @@ function Register({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
-  const [fullNameError, setFullNameError] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [fullNameError, setFullNameError] =
+    useState("");
+  const [emailError, setEmailError] =
+    useState("");
+  const [passwordError, setPasswordError] =
+    useState("");
   const [confirmPasswordError, setConfirmPasswordError] =
     useState("");
-  const [termsError, setTermsError] = useState("");
+  const [termsError, setTermsError] =
+    useState("");
+  const [registerError, setRegisterError] =
+    useState("");
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] =
+    useState(false);
 
   function handleRegister(event) {
     event.preventDefault();
 
-    // Clear previous errors
     setFullNameError("");
     setEmailError("");
     setPasswordError("");
     setConfirmPasswordError("");
     setTermsError("");
+    setRegisterError("");
 
     let isValid = true;
 
-    // Full Name validation
     const trimmedName = fullName.trim();
+    const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedName) {
       setFullNameError("Full name is required.");
       isValid = false;
     } else if (trimmedName.length < 2) {
-      setFullNameError("Please enter your full name.");
+      setFullNameError(
+        "Please enter your full name."
+      );
       isValid = false;
     }
-
-    // Email validation
-    const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
       setEmailError("Email is required.");
       isValid = false;
     } else if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        trimmedEmail
+      )
     ) {
-      setEmailError("Please enter a valid email address.");
+      setEmailError(
+        "Please enter a valid email address."
+      );
       isValid = false;
     }
 
-    // Password validation
     if (!password) {
-      setPasswordError("Password is required.");
+      setPasswordError(
+        "Password is required."
+      );
       isValid = false;
     } else if (password.length < 6) {
       setPasswordError(
@@ -77,7 +90,6 @@ function Register({
       isValid = false;
     }
 
-    // Confirm Password validation
     if (!confirmPassword) {
       setConfirmPasswordError(
         "Please confirm your password."
@@ -90,7 +102,6 @@ function Register({
       isValid = false;
     }
 
-    // Terms validation
     if (!agreeTerms) {
       setTermsError(
         "Please agree to the Terms of Service and Privacy Policy."
@@ -102,15 +113,53 @@ function Register({
       return;
     }
 
+    /*
+     * Get all locally registered users.
+     */
+    const users = JSON.parse(
+      localStorage.getItem("voyagent_users") ||
+        "{}"
+    );
+
+    /*
+     * Prevent duplicate accounts.
+     */
+    if (users[trimmedEmail]) {
+      setEmailError(
+        "An account with this email already exists."
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     /*
-     * Demo authentication:
-     * Save the user's basic profile information so it can
-     * be displayed in the Landing navbar and Profile page.
+     * Create the new account.
      */
-    localStorage.setItem("userName", trimmedName);
-    localStorage.setItem("userEmail", trimmedEmail);
+    users[trimmedEmail] = {
+      name: trimmedName,
+      email: trimmedEmail,
+      password,
+    };
+
+    localStorage.setItem(
+      "voyagent_users",
+      JSON.stringify(users)
+    );
+
+    /*
+     * Keep the current user information available
+     * for the rest of the application.
+     */
+    localStorage.setItem(
+      "userName",
+      trimmedName
+    );
+
+    localStorage.setItem(
+      "userEmail",
+      trimmedEmail
+    );
 
     setTimeout(() => {
       setIsLoading(false);
@@ -125,25 +174,24 @@ function Register({
 
   return (
     <AuthLayout isModal={isModal}>
-      {/* Heading */}
-      <div className="mb-7 text-center">
+      <div className="mb-8 text-center">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-          Create Account
+          Create Your Account
         </h2>
 
         <p className="mt-2 text-sm text-slate-500">
-          Create your account and start exploring.
+          Start planning unforgettable journeys with Voyagent AI.
         </p>
       </div>
 
-      {/* Social Sign Up */}
+      {/* Social Register */}
+
       <div className="mb-6 grid grid-cols-2 gap-3">
         <button
           type="button"
           className="
             flex h-11 items-center justify-center gap-2
-            rounded-xl
-            border border-slate-200
+            rounded-xl border border-slate-200
             bg-white
             text-sm font-medium text-slate-700
             shadow-sm
@@ -154,7 +202,6 @@ function Register({
           <span className="text-base font-bold text-blue-600">
             f
           </span>
-
           Facebook
         </button>
 
@@ -162,8 +209,7 @@ function Register({
           type="button"
           className="
             flex h-11 items-center justify-center gap-2
-            rounded-xl
-            border border-slate-200
+            rounded-xl border border-slate-200
             bg-white
             text-sm font-medium text-slate-700
             shadow-sm
@@ -171,15 +217,15 @@ function Register({
             hover:bg-slate-50
           "
         >
-          <span className="text-base font-bold text-slate-700">
+          <span className="text-base font-bold">
             G
           </span>
-
           Google
         </button>
       </div>
 
       {/* Divider */}
+
       <div className="mb-6 flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-200" />
 
@@ -190,17 +236,14 @@ function Register({
         <div className="h-px flex-1 bg-slate-200" />
       </div>
 
-      {/* Registration Form */}
       <form
         onSubmit={handleRegister}
         className="space-y-5"
       >
         {/* Full Name */}
+
         <div className="space-y-2">
-          <label
-            htmlFor="fullName"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label className="block text-sm font-medium text-slate-700">
             Full Name
           </label>
 
@@ -211,6 +254,7 @@ function Register({
             onChange={(event) => {
               setFullName(event.target.value);
               setFullNameError("");
+              setRegisterError("");
             }}
           />
 
@@ -222,11 +266,9 @@ function Register({
         </div>
 
         {/* Email */}
+
         <div className="space-y-2">
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label className="block text-sm font-medium text-slate-700">
             Email Address
           </label>
 
@@ -237,6 +279,7 @@ function Register({
             onChange={(event) => {
               setEmail(event.target.value);
               setEmailError("");
+              setRegisterError("");
             }}
           />
 
@@ -248,22 +291,25 @@ function Register({
         </div>
 
         {/* Password */}
+
         <div className="space-y-2">
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label className="block text-sm font-medium text-slate-700">
             Password
           </label>
 
           <div className="relative">
             <Input
-              type={showPassword ? "text" : "password"}
+              type={
+                showPassword
+                  ? "text"
+                  : "password"
+              }
               placeholder="Create a password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
                 setPasswordError("");
+                setRegisterError("");
               }}
             />
 
@@ -286,7 +332,9 @@ function Register({
                 hover:text-cyan-600
               "
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword
+                ? "Hide"
+                : "Show"}
             </button>
           </div>
 
@@ -298,11 +346,9 @@ function Register({
         </div>
 
         {/* Confirm Password */}
+
         <div className="space-y-2">
-          <label
-            htmlFor="confirmPassword"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label className="block text-sm font-medium text-slate-700">
             Confirm Password
           </label>
 
@@ -316,8 +362,11 @@ function Register({
               placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(event) => {
-                setConfirmPassword(event.target.value);
+                setConfirmPassword(
+                  event.target.value
+                );
                 setConfirmPasswordError("");
+                setRegisterError("");
               }}
             />
 
@@ -340,7 +389,9 @@ function Register({
                 hover:text-cyan-600
               "
             >
-              {showConfirmPassword ? "Hide" : "Show"}
+              {showConfirmPassword
+                ? "Hide"
+                : "Show"}
             </button>
           </div>
 
@@ -351,18 +402,31 @@ function Register({
           )}
         </div>
 
+        {/* Register Error */}
+
+        {registerError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-600">
+              {registerError}
+            </p>
+          </div>
+        )}
+
         {/* Terms */}
-        <div className="space-y-2">
+
+        <div>
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={agreeTerms}
               onChange={(event) => {
-                setAgreeTerms(event.target.checked);
+                setAgreeTerms(
+                  event.target.checked
+                );
                 setTermsError("");
               }}
               className="
-                mt-1
+                mt-0.5
                 h-4
                 w-4
                 shrink-0
@@ -374,39 +438,26 @@ function Register({
 
             <span className="text-sm leading-5 text-slate-500">
               I agree to the{" "}
-              <button
-                type="button"
-                className="
-                  font-medium
-                  text-cyan-600
-                  hover:underline
-                "
-              >
+              <span className="font-medium text-cyan-600">
                 Terms of Service
-              </button>{" "}
+              </span>{" "}
               and{" "}
-              <button
-                type="button"
-                className="
-                  font-medium
-                  text-cyan-600
-                  hover:underline
-                "
-              >
+              <span className="font-medium text-cyan-600">
                 Privacy Policy
-              </button>
+              </span>
               .
             </span>
           </label>
 
           {termsError && (
-            <p className="text-sm text-red-500">
+            <p className="mt-2 text-sm text-red-500">
               {termsError}
             </p>
           )}
         </div>
 
         {/* Create Account */}
+
         <Button
           type="submit"
           disabled={isLoading}
@@ -432,7 +483,8 @@ function Register({
         </Button>
 
         {/* Sign In */}
-        <div className="pt-1 text-center">
+
+        <div className="pt-2 text-center">
           <p className="text-sm text-slate-500">
             Already have an account?{" "}
 

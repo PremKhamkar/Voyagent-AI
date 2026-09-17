@@ -32,6 +32,8 @@ function Planner() {
   const [destinationPlan, setDestinationPlan] = useState("");
   const [accommodationPlan, setAccommodationPlan] = useState("");
 
+  const [isSaved, setIsSaved] = useState(false);
+
   const preferences = [
     "Culture",
     "Food",
@@ -79,7 +81,8 @@ function Planner() {
     const newErrors = {};
 
     if (!trip.sourceCity.trim()) {
-      newErrors.sourceCity = "Source city is required.";
+      newErrors.sourceCity =
+        "Source city is required.";
     }
 
     if (!trip.destination.trim()) {
@@ -146,6 +149,7 @@ function Planner() {
     setBudgetPlan("");
     setDestinationPlan("");
     setAccommodationPlan("");
+    setIsSaved(false);
 
     try {
       const response = await fetch(
@@ -174,12 +178,15 @@ function Planner() {
       setWeatherInfo(
         data.weather_info || ""
       );
+
       setBudgetPlan(
         data.budget_plan || ""
       );
+
       setDestinationPlan(
         data.destination_plan || ""
       );
+
       setAccommodationPlan(
         data.accommodation_plan || ""
       );
@@ -196,13 +203,111 @@ function Planner() {
     }
   }
 
+  function handleSaveTrip() {
+    if (!generatedTrip || !itinerary) {
+      return;
+    }
+
+    const userEmail =
+      localStorage.getItem("userEmail");
+
+    if (!userEmail) {
+      setErrors({
+        submit:
+          "Unable to identify your account. Please log in again.",
+      });
+
+      return;
+    }
+
+    const storageKey =
+      `voyagent_saved_trips_${userEmail}`;
+
+    const existingTrips = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    /*
+     * Prevent saving the exact same generated trip
+     * multiple times.
+     */
+    const alreadyExists = existingTrips.some(
+      (savedTrip) =>
+        savedTrip.destination ===
+          generatedTrip.destination &&
+        savedTrip.startDate ===
+          generatedTrip.startDate &&
+        savedTrip.endDate ===
+          generatedTrip.endDate &&
+        savedTrip.budget ===
+          generatedTrip.budget
+    );
+
+    if (alreadyExists) {
+      setIsSaved(true);
+      return;
+    }
+
+    const savedTrip = {
+      id: Date.now(),
+
+      savedAt: new Date().toISOString(),
+
+      sourceCity:
+        generatedTrip.sourceCity,
+
+      destination:
+        generatedTrip.destination,
+
+      startDate:
+        generatedTrip.startDate,
+
+      endDate:
+        generatedTrip.endDate,
+
+      budget:
+        generatedTrip.budget,
+
+      travelers:
+        generatedTrip.travelers,
+
+      travelType:
+        generatedTrip.travelType,
+
+      preferences:
+        generatedTrip.preferences || [],
+
+      itinerary,
+
+      weatherInfo,
+
+      budgetPlan,
+
+      destinationPlan,
+
+      accommodationPlan,
+    };
+
+    const updatedTrips = [
+      savedTrip,
+      ...existingTrips,
+    ];
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(updatedTrips)
+    );
+
+    setIsSaved(true);
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
 
       {/* Header */}
-
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+
           <Link
             to="/"
             className="flex items-center gap-3"
@@ -238,17 +343,16 @@ function Planner() {
           >
             Back to Home
           </Link>
+
         </div>
       </header>
 
       {/* Planner */}
-
       <main className="px-6 py-10">
 
         <div className="mx-auto max-w-6xl">
 
           {/* Form Card */}
-
           <div
             className="
               rounded-3xl
@@ -278,7 +382,6 @@ function Planner() {
             >
 
               {/* Source + Destination */}
-
               <div className="grid gap-6 md:grid-cols-2">
 
                 <div>
@@ -354,7 +457,6 @@ function Planner() {
               </div>
 
               {/* Dates */}
-
               <div className="grid gap-6 md:grid-cols-2">
 
                 <div>
@@ -439,7 +541,6 @@ function Planner() {
               </div>
 
               {/* Budget + Travelers + Travel Style */}
-
               <div className="grid gap-6 md:grid-cols-3">
 
                 <div>
@@ -541,18 +642,23 @@ function Planner() {
                     <option value="Leisure">
                       Leisure
                     </option>
+
                     <option value="Solo">
                       Solo
                     </option>
+
                     <option value="Couple">
                       Couple
                     </option>
+
                     <option value="Family">
                       Family
                     </option>
+
                     <option value="Friends">
                       Friends
                     </option>
+
                     <option value="Business">
                       Business
                     </option>
@@ -562,7 +668,6 @@ function Planner() {
               </div>
 
               {/* Preferences */}
-
               <div>
                 <label className="mb-3 block text-sm font-medium text-slate-700">
                   Trip Preferences & Interests
@@ -609,7 +714,6 @@ function Planner() {
               </div>
 
               {/* Submit Error */}
-
               {errors.submit && (
                 <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
                   {errors.submit}
@@ -617,7 +721,6 @@ function Planner() {
               )}
 
               {/* Generate Button */}
-
               <button
                 type="submit"
                 disabled={loading}
@@ -645,7 +748,6 @@ function Planner() {
               </button>
 
               {/* Agent Flow */}
-
               {loading && (
                 <div className="pt-2">
                   <AgentFlow />
@@ -653,11 +755,9 @@ function Planner() {
               )}
 
             </form>
-
           </div>
 
           {/* Generated Trip */}
-
           {generatedTrip && (
             <div
               className="
@@ -670,9 +770,42 @@ function Planner() {
                 shadow-sm
               "
             >
-              <h2 className="mb-5 text-2xl font-bold text-slate-800">
-                🗺️ Generated Trip Summary
-              </h2>
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                <h2 className="text-2xl font-bold text-slate-800">
+                  🗺️ Generated Trip Summary
+                </h2>
+
+                {/* Save Trip Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveTrip}
+                  disabled={isSaved}
+                  className={`
+                    inline-flex
+                    items-center
+                    justify-center
+                    rounded-xl
+                    px-5
+                    py-3
+                    text-sm
+                    font-semibold
+                    shadow-sm
+                    transition-all
+                    duration-200
+                    ${
+                      isSaved
+                        ? "cursor-default bg-emerald-100 text-emerald-700"
+                        : "bg-cyan-600 text-white hover:-translate-y-0.5 hover:bg-cyan-700 hover:shadow-md"
+                    }
+                  `}
+                >
+                  {isSaved
+                    ? "✓ Trip Saved"
+                    : "💾 Save Trip"}
+                </button>
+
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
 
@@ -719,221 +852,215 @@ function Planner() {
           )}
 
           {/* AI Itinerary */}
-
           {itinerary && (
-  <div
-    className="
-      mt-8
-      overflow-hidden
-      rounded-3xl
-      border
-      border-slate-200
-      bg-white
-      shadow-sm
-    "
-  >
-    {/* Itinerary Header */}
-
-    <div
-      className="
-        border-b
-        border-slate-200
-        bg-gradient-to-r
-        from-teal-50
-        to-blue-50
-        px-6
-        py-6
-      "
-    >
-      <div className="flex items-start gap-4">
-        <div
-          className="
-            flex
-            h-12
-            w-12
-            shrink-0
-            items-center
-            justify-center
-            rounded-2xl
-            bg-gradient-to-r
-            from-teal-500
-            to-blue-600
-            text-xl
-            text-white
-            shadow-sm
-          "
-        >
-          ✨
-        </div>
-
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">
-            Your AI Travel Itinerary
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            A personalized day-by-day plan created for your trip.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    {/* Itinerary Content */}
-
-    <div className="p-6 md:p-8">
-
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-
-          /* Day heading */
-
-          h2: ({ children }) => (
             <div
               className="
                 mt-8
-                mb-6
                 overflow-hidden
-                rounded-2xl
+                rounded-3xl
                 border
                 border-slate-200
-                bg-slate-50
-                first:mt-0
+                bg-white
+                shadow-sm
               "
             >
+              {/* Itinerary Header */}
               <div
                 className="
-                  flex
-                  items-center
-                  gap-3
+                  border-b
+                  border-slate-200
                   bg-gradient-to-r
-                  from-teal-500
-                  to-blue-600
-                  px-5
-                  py-4
-                  text-white
+                  from-teal-50
+                  to-blue-50
+                  px-6
+                  py-6
                 "
               >
-                <div
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-white/20
-                    font-bold
-                  "
-                >
-                  📅
-                </div>
+                <div className="flex items-start gap-4">
 
-                <h3 className="text-lg font-bold">
-                  {children}
-                </h3>
+                  <div
+                    className="
+                      flex
+                      h-12
+                      w-12
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      bg-gradient-to-r
+                      from-teal-500
+                      to-blue-600
+                      text-xl
+                      text-white
+                      shadow-sm
+                    "
+                  >
+                    ✨
+                  </div>
+
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-800">
+                      Your AI Travel Itinerary
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      A personalized day-by-day plan created for your trip.
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Itinerary Content */}
+              <div className="p-6 md:p-8">
+
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+
+                    h2: ({ children }) => (
+                      <div
+                        className="
+                          mt-8
+                          mb-6
+                          overflow-hidden
+                          rounded-2xl
+                          border
+                          border-slate-200
+                          bg-slate-50
+                          first:mt-0
+                        "
+                      >
+                        <div
+                          className="
+                            flex
+                            items-center
+                            gap-3
+                            bg-gradient-to-r
+                            from-teal-500
+                            to-blue-600
+                            px-5
+                            py-4
+                            text-white
+                          "
+                        >
+                          <div
+                            className="
+                              flex
+                              h-9
+                              w-9
+                              items-center
+                              justify-center
+                              rounded-xl
+                              bg-white/20
+                              font-bold
+                            "
+                          >
+                            📅
+                          </div>
+
+                          <h3 className="text-lg font-bold">
+                            {children}
+                          </h3>
+                        </div>
+                      </div>
+                    ),
+
+                    h3: ({ children }) => {
+                      const text = String(children);
+
+                      let icon = "📍";
+
+                      if (text.includes("Morning")) {
+                        icon = "🌅";
+                      } else if (
+                        text.includes("Afternoon")
+                      ) {
+                        icon = "☀️";
+                      } else if (
+                        text.includes("Evening")
+                      ) {
+                        icon = "🌆";
+                      } else if (
+                        text.includes("Estimated")
+                      ) {
+                        icon = "💰";
+                      } else if (
+                        text.includes("Travel Tip")
+                      ) {
+                        icon = "💡";
+                      }
+
+                      return (
+                        <div
+                          className="
+                            mt-6
+                            mb-3
+                            flex
+                            items-center
+                            gap-2
+                            text-base
+                            font-bold
+                            text-slate-800
+                          "
+                        >
+                          <span>{icon}</span>
+                          <span>{children}</span>
+                        </div>
+                      );
+                    },
+
+                    p: ({ children }) => (
+                      <p className="mb-3 text-sm leading-7 text-slate-600">
+                        {children}
+                      </p>
+                    ),
+
+                    strong: ({ children }) => (
+                      <strong className="font-semibold text-slate-800">
+                        {children}
+                      </strong>
+                    ),
+
+                    ul: ({ children }) => (
+                      <ul className="mb-4 space-y-2 pl-5 text-sm text-slate-600">
+                        {children}
+                      </ul>
+                    ),
+
+                    li: ({ children }) => (
+                      <li className="leading-6">
+                        {children}
+                      </li>
+                    ),
+
+                    a: ({ children, href }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="
+                          font-medium
+                          text-cyan-600
+                          underline
+                          decoration-cyan-300
+                          underline-offset-2
+                          hover:text-cyan-700
+                        "
+                      >
+                        {children}
+                      </a>
+                    ),
+                  }}
+                >
+                  {itinerary}
+                </ReactMarkdown>
+
               </div>
             </div>
-          ),
-
-          /* Morning / Afternoon / Evening */
-
-          h3: ({ children }) => {
-            const text = String(children);
-
-            let icon = "📍";
-
-            if (text.includes("Morning")) {
-              icon = "🌅";
-            } else if (text.includes("Afternoon")) {
-              icon = "☀️";
-            } else if (text.includes("Evening")) {
-              icon = "🌆";
-            } else if (text.includes("Estimated")) {
-              icon = "💰";
-            } else if (text.includes("Travel Tip")) {
-              icon = "💡";
-            }
-
-            return (
-              <div
-                className="
-                  mt-6
-                  mb-3
-                  flex
-                  items-center
-                  gap-2
-                  text-base
-                  font-bold
-                  text-slate-800
-                "
-              >
-                <span>{icon}</span>
-                <span>{children}</span>
-              </div>
-            );
-          },
-
-          /* Paragraph */
-
-          p: ({ children }) => (
-            <p className="mb-3 text-sm leading-7 text-slate-600">
-              {children}
-            </p>
-          ),
-
-          /* Strong text */
-
-          strong: ({ children }) => (
-            <strong className="font-semibold text-slate-800">
-              {children}
-            </strong>
-          ),
-
-          /* Lists */
-
-          ul: ({ children }) => (
-            <ul className="mb-4 space-y-2 pl-5 text-sm text-slate-600">
-              {children}
-            </ul>
-          ),
-
-          li: ({ children }) => (
-            <li className="leading-6">
-              {children}
-            </li>
-          ),
-
-          /* Links */
-
-          a: ({ children, href }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="
-                font-medium
-                text-cyan-600
-                underline
-                decoration-cyan-300
-                underline-offset-2
-                hover:text-cyan-700
-              "
-            >
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {itinerary}
-      </ReactMarkdown>
-
-    </div>
-  </div>
-)}
+          )}
 
           {/* AI Planning Cards */}
-
           {(weatherInfo ||
             budgetPlan ||
             destinationPlan ||
@@ -959,8 +1086,25 @@ function Planner() {
             </div>
           )}
 
-        </div>
+          {/* Saved Trips Link */}
+          {generatedTrip && (
+            <div className="mt-8 flex justify-center pb-6">
+              <Link
+                to="/saved-trips"
+                className="
+                  text-sm
+                  font-semibold
+                  text-cyan-600
+                  transition
+                  hover:text-cyan-700
+                "
+              >
+                View Saved Trips →
+              </Link>
+            </div>
+          )}
 
+        </div>
       </main>
     </div>
   );

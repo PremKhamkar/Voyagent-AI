@@ -9,6 +9,7 @@ import Profile from "../pages/Profile/Profile";
 import SavedTrips from "../pages/SavedTrips/SavedTrips";
 import Settings from "../pages/Settings/Settings";
 import ProtectedRoute from "../components/ProtectedRoute";
+import SavedTripDetails from "../pages/SavedTripDetails/SavedTripDetails";
 
 function PublicRoute({ children }) {
   const isLoggedIn =
@@ -87,6 +88,15 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+      path="/saved-trips/:tripId"
+      element={
+      <ProtectedRoute>
+        <SavedTripDetails />
+        </ProtectedRoute>
+      }
+    />
 
       <Route
         path="/settings"
