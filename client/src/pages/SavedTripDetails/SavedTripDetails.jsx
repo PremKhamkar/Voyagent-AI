@@ -48,7 +48,7 @@ function SavedTripDetails() {
   }, [tripId, userEmail, navigate]);
 
   // ============================================================
-  // Fetch LIVE Weather
+  // Fetch Live Weather
   // ============================================================
 
   async function fetchLiveWeather(destination) {
@@ -169,16 +169,10 @@ function SavedTripDetails() {
       return [];
     }
 
-    const startDate =
-      trip.startDate;
-
-    const endDate =
-      trip.endDate;
-
     return weatherData.daily.filter(
       (day) =>
-        day.date >= startDate &&
-        day.date <= endDate
+        day.date >= trip.startDate &&
+        day.date <= trip.endDate
     );
   }
 
@@ -415,6 +409,7 @@ function SavedTripDetails() {
             </div>
 
             <div>
+
               <h2 className="text-2xl font-black text-slate-900">
                 AI Travel Itinerary
               </h2>
@@ -422,6 +417,7 @@ function SavedTripDetails() {
               <p className="text-sm text-slate-500">
                 Your personalized day-by-day travel plan
               </p>
+
             </div>
 
           </div>
@@ -549,15 +545,19 @@ function SavedTripDetails() {
                 </span>
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+
                   {weather.last_updated && (
                     <span>
                       Weather data:{" "}
                       {new Date(
                         weather.last_updated
-                      ).toLocaleTimeString("en-IN", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                      ).toLocaleTimeString(
+                        "en-IN",
+                        {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }
+                      )}
                     </span>
                   )}
 
@@ -579,6 +579,7 @@ function SavedTripDetails() {
                       </span>
                     </>
                   )}
+
                 </div>
 
               </div>
@@ -593,147 +594,347 @@ function SavedTripDetails() {
         </section>
 
         {/* ======================================================
-            Trip Forecast Availability
+            TRIP FORECAST
         ====================================================== */}
 
         {weather && (
           <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
 
-            <div className="mb-6">
+            {/* Header */}
 
-              <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                  📅
-                </div>
-
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900">
-                    Trip Forecast
-                  </h2>
-
-                  <p className="text-sm text-slate-500">
-                    Forecast availability for your
-                    selected travel dates
-                  </p>
-                </div>
-
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl">
+                📅
               </div>
 
-              <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+              <div>
 
-                <p className="text-sm font-semibold text-slate-700">
-                  Your trip
-                </p>
+                <h2 className="text-2xl font-black text-slate-900">
+                  Trip Forecast
+                </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  {formatShortDate(
-                    trip.startDate
-                  )}{" "}
-                  →{" "}
-                  {formatShortDate(
-                    trip.endDate
-                  )}
+                  Forecast availability for your
+                  selected travel dates
                 </p>
 
               </div>
 
             </div>
 
+            {/* Trip Dates */}
+
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+
+                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">
+                    Your trip
+                  </p>
+
+                  <p className="mt-1 text-lg font-black text-slate-800">
+                    {formatShortDate(
+                      trip.startDate
+                    )}{" "}
+                    <span className="font-medium text-slate-400">
+                      →
+                    </span>{" "}
+                    {formatShortDate(
+                      trip.endDate
+                    )}
+                  </p>
+
+                </div>
+
+                <div className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm">
+                  {getTripDuration(
+                    trip.startDate,
+                    trip.endDate
+                  )}
+                </div>
+
+              </div>
+
+              {/* Date Timeline */}
+
+              <div className="mt-5 flex items-center">
+
+                <div className="h-3 w-3 rounded-full bg-cyan-500 ring-4 ring-cyan-100" />
+
+                <div className="h-px flex-1 bg-slate-300" />
+
+                <div className="h-3 w-3 rounded-full bg-indigo-500 ring-4 ring-indigo-100" />
+
+              </div>
+
+              <div className="mt-2 flex justify-between text-[11px] font-semibold text-slate-400">
+
+                <span>
+                  {formatShortDate(
+                    trip.startDate
+                  )}
+                </span>
+
+                <span>
+                  {formatShortDate(
+                    trip.endDate
+                  )}
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* Available Forecast */}
+
             {tripForecast.length > 0 ? (
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-5">
 
-                {tripForecast.map(
-                  (day) => (
-                    <div
-                      key={day.date}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
-                    >
+                <div className="mb-4 flex items-center justify-between">
 
-                      <p className="text-sm font-bold text-slate-800">
-                        {new Date(
-                          `${day.date}T12:00:00`
-                        ).toLocaleDateString(
-                          "en-IN",
-                          {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                          }
-                        )}
-                      </p>
+                  <div>
 
-                      {day.icon && (
-                        <img
-                          src={day.icon}
-                          alt={day.condition}
-                          className="mt-3 h-14 w-14"
-                        />
-                      )}
+                    <h3 className="text-lg font-black text-slate-900">
+                      Forecast During Your Trip
+                    </h3>
 
-                      <p className="mt-2 text-sm font-semibold capitalize text-slate-700">
-                        {day.condition}
-                      </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Available forecast data for
+                      the selected dates
+                    </p>
 
-                      <div className="mt-3 flex items-center gap-3">
+                  </div>
 
-                        <span className="text-xl font-black text-slate-900">
-                          {day.max_temperature}°
-                        </span>
+                  <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 sm:block">
+                    {tripForecast.length}{" "}
+                    {tripForecast.length === 1
+                      ? "day"
+                      : "days"}{" "}
+                    available
+                  </span>
 
-                        <span className="text-sm text-slate-400">
-                          {day.min_temperature}°
-                        </span>
+                </div>
 
-                      </div>
+                <div className="flex gap-3 overflow-x-auto pb-2">
 
-                      <div className="mt-3 space-y-1 text-xs text-slate-500">
+                  {tripForecast.map(
+                    (day) => (
+                      <div
+                        key={day.date}
+                        className="min-w-[210px] rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                      >
 
-                        <p>
-                          🌧️ Rain{" "}
-                          {day.rain_probability}%
+                        <div className="flex items-start justify-between">
+
+                          <div>
+
+                            <p className="text-sm font-black text-slate-800">
+                              {new Date(
+                                `${day.date}T12:00:00`
+                              ).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  weekday:
+                                    "short",
+                                  day: "numeric",
+                                  month: "short",
+                                }
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              {day.date}
+                            </p>
+
+                          </div>
+
+                          {day.icon && (
+                            <img
+                              src={day.icon}
+                              alt={
+                                day.condition ||
+                                "Forecast"
+                              }
+                              className="h-12 w-12"
+                            />
+                          )}
+
+                        </div>
+
+                        <p className="mt-3 text-sm font-semibold capitalize text-slate-700">
+                          {day.condition ||
+                            "Unknown"}
                         </p>
 
-                        <p>
-                          💧 Humidity{" "}
-                          {day.humidity}%
-                        </p>
+                        <div className="mt-3 flex items-end gap-3">
+
+                          <span className="text-3xl font-black text-slate-900">
+                            {day.max_temperature}°
+                          </span>
+
+                          <span className="pb-1 text-sm font-semibold text-slate-400">
+                            {day.min_temperature}°
+                          </span>
+
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+
+                          <div className="rounded-xl bg-white px-3 py-2">
+
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              Rain
+                            </p>
+
+                            <p className="mt-1 text-xs font-bold text-slate-700">
+                              🌧️{" "}
+                              {day.rain_probability}%
+                            </p>
+
+                          </div>
+
+                          <div className="rounded-xl bg-white px-3 py-2">
+
+                            <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                              Humidity
+                            </p>
+
+                            <p className="mt-1 text-xs font-bold text-slate-700">
+                              💧{" "}
+                              {day.humidity}%
+                            </p>
+
+                          </div>
+
+                        </div>
 
                       </div>
+                    )
+                  )}
 
-                    </div>
-                  )
-                )}
+                </div>
 
               </div>
 
             ) : (
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              /* =================================================
+                 UNAVAILABLE FORECAST STATE
+              ================================================== */
 
-                <p className="font-semibold text-amber-800">
-                  📅 Trip-date forecast not
-                  available yet
-                </p>
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5">
 
-                <p className="mt-1 text-sm text-amber-700">
-                  The available weather forecast
-                  does not currently cover your
-                  selected travel dates. The live
-                  weather above will continue to
-                  update when you visit this trip.
-                </p>
+                <div className="flex items-start gap-4">
+
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-xl shadow-sm">
+                    📅
+                  </div>
+
+                  <div className="min-w-0">
+
+                    <div className="flex flex-wrap items-center gap-2">
+
+                      <h3 className="text-base font-black text-amber-900">
+                        Trip-date forecast not
+                        available yet
+                      </h3>
+
+                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 shadow-sm">
+                        Waiting for forecast window
+                      </span>
+
+                    </div>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-amber-800/80">
+                      Weather forecasts for{" "}
+                      <span className="font-semibold">
+                        {formatShortDate(
+                          trip.startDate
+                        )}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-semibold">
+                        {formatShortDate(
+                          trip.endDate
+                        )}
+                      </span>{" "}
+                      are not available yet.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+
+                  <div className="rounded-xl border border-amber-200/70 bg-white/70 p-3.5">
+
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                      Trip dates
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      {formatShortDate(
+                        trip.startDate
+                      )}{" "}
+                      →{" "}
+                      {formatShortDate(
+                        trip.endDate
+                      )}
+                    </p>
+
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200/70 bg-white/70 p-3.5">
+
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                      Current status
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      Forecast not in range
+                    </p>
+
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200/70 bg-white/70 p-3.5">
+
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                      Live weather
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-emerald-700">
+                      ● Available above
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200/70 bg-white/50 px-4 py-3">
+
+                  <span className="text-sm">
+                    🔄
+                  </span>
+
+                  <p className="text-xs font-medium leading-5 text-amber-800/80">
+                    🔄 Forecast information will appear here when your selected dates enter the available forecast window. Reopen or refresh the trip to check for updated forecast data.
+                  </p>
+
+                </div>
 
               </div>
-
             )}
 
           </section>
         )}
 
         {/* ======================================================
-            Information Grid
+            INFORMATION GRID
         ====================================================== */}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -749,6 +950,7 @@ function SavedTripDetails() {
               </div>
 
               <div>
+
                 <h2 className="text-xl font-bold text-slate-900">
                   Budget Plan
                 </h2>
@@ -756,6 +958,7 @@ function SavedTripDetails() {
                 <p className="text-sm text-slate-500">
                   AI-generated expense planning
                 </p>
+
               </div>
 
             </div>
@@ -789,6 +992,7 @@ function SavedTripDetails() {
               </div>
 
               <div>
+
                 <h2 className="text-xl font-bold text-slate-900">
                   Destination Guide
                 </h2>
@@ -796,6 +1000,7 @@ function SavedTripDetails() {
                 <p className="text-sm text-slate-500">
                   Places and attractions to explore
                 </p>
+
               </div>
 
             </div>
@@ -830,6 +1035,7 @@ function SavedTripDetails() {
               </div>
 
               <div>
+
                 <h2 className="text-xl font-bold text-slate-900">
                   Accommodation
                 </h2>
@@ -837,6 +1043,7 @@ function SavedTripDetails() {
                 <p className="text-sm text-slate-500">
                   Suggested stay information
                 </p>
+
               </div>
 
             </div>
