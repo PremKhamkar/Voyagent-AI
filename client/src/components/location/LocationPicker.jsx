@@ -12,24 +12,6 @@ const EMPTY_LEVELS = {
 
 const LEVELS = ["country", "state", "district", "subdistrict", "city"];
 
-
-function CloseIcon() {
-    return (
-        <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-        >
-            <path d="M6 6l12 12" />
-            <path d="M18 6 6 18" />
-        </svg>
-    );
-}
-
 function LocationPicker({
     label,
     type,
@@ -52,7 +34,6 @@ function LocationPicker({
     const [directResults, setDirectResults] = useState([]);
     const [directLocation, setDirectLocation] = useState(null);
     const [directLoading, setDirectLoading] = useState(false);
-    const [inputMode, setInputMode] = useState("direct");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -70,8 +51,6 @@ function LocationPicker({
     }, []);
 
     useEffect(() => {
-        // Sync an externally cleared value, but do not overwrite the
-        // progressive hierarchy after the user selects a lower level.
         if (!value?.name) {
             setLevels(EMPTY_LEVELS);
             setActiveField(null);
@@ -79,27 +58,50 @@ function LocationPicker({
             setFieldResults({});
             setDirectSearchText("");
             setDirectResults([]);
+            setDirectLocation(null);
             return;
         }
 
-        // A value created by the direct-search control must remain a direct
-        // location. Never promote it to Country just because Planner returns
-        // a simple { name } object.
-        if (directLocation?.name === value.name) {
+        // Direct-search selections are intentionally kept outside the
+        // Country → State → District hierarchy. This also keeps the UI
+        // correct when Planner swaps From and To.
+        if (directLocation) {
+            if (directLocation.name === value.name) {
+                return;
+            }
+
+            // Parent value changed externally (for example, Swap was clicked).
+            // Treat the new value as another direct place instead of promoting
+            // it to Country.
+            setLevels(EMPTY_LEVELS);
+            setActiveField(null);
+            setFieldText({});
+            setFieldResults({});
+            setDirectLocation(value);
+            setDirectSearchText(value.name);
+            setDirectResults([]);
+            setError("");
             return;
         }
 
+        // Preserve an already-selected hierarchy.
         const hasSelectedLevel = Object.values(levels).some(Boolean);
         if (hasSelectedLevel) {
             return;
         }
 
-        // If Planner restores a rich country object, it is safe to restore
-        // the hierarchy. A plain { name } value is treated as a direct place.
-        if (value.countryCode || value.featureCode === "ADM0") {
+        // Only a real country selection may initialize the hierarchy.
+        if (value.featureCode === "ADM0") {
             setLevels({ ...EMPTY_LEVELS, country: value });
+            return;
         }
-    }, [value]);
+
+        // Plain values coming from Planner are direct places.
+        setLevels(EMPTY_LEVELS);
+        setDirectLocation(value);
+        setDirectSearchText(value.name);
+        setDirectResults([]);
+    }, [value, directLocation, levels]);
 
     useEffect(() => {
         return () => {
@@ -153,8 +155,6 @@ function LocationPicker({
             context.adminCode3 ||
             levels.subdistrict?.adminCode3 ||
             "",
-        featureClass: location?.featureClass || "",
-        featureCode: location?.featureCode || "",
         latitude: location?.latitude ?? null,
         longitude: location?.longitude ?? null,
     });
@@ -305,6 +305,22 @@ function LocationPicker({
         }
     };
 
+    const normalizeDirectLocation = (location) => ({
+        id: location?.id ?? null,
+        name: location?.name || "",
+        asciiName: location?.asciiName || location?.name || "",
+        countryName: location?.countryName || "",
+        countryCode: location?.countryCode || "",
+        state: location?.state || "",
+        district: location?.district || "",
+        subdistrict: location?.subdistrict || "",
+        adminCode1: location?.adminCode1 || "",
+        adminCode2: location?.adminCode2 || "",
+        adminCode3: location?.adminCode3 || "",
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+    });
+
     const getContext = (level) => {
         if (level === "country") return {};
         return {
@@ -334,7 +350,9 @@ function LocationPicker({
         }
 
         setLevels(next);
-        setInputMode("hierarchy");
+        setDirectLocation(null);
+        setDirectSearchText("");
+        setDirectResults([]);
 
         const output = {
             ...normalized,
@@ -406,39 +424,7 @@ function LocationPicker({
         }
 
         if (level === "country") {
-            // Country uses the cached country list for instant local filtering.
-            // This keeps the country dropdown fast while the top search handles
-            // arbitrary places such as Taj Mahal, Kalsubai and Wagholi.
-            const text = query.trim().toLowerCase();
-
-            if (!text) {
-                setFieldResults((prev) => ({
-                    ...prev,
-                    country: countries,
-                }));
-                setFieldLoading((prev) => ({
-                    ...prev,
-                    country: false,
-                }));
-                return;
-            }
-
-            setFieldLoading((prev) => ({
-                ...prev,
-                country: countriesLoading,
-            }));
-
-            setFieldResults((prev) => ({
-                ...prev,
-                country: countries
-                    .filter((country) =>
-                        (country.name || "")
-                            .toLowerCase()
-                            .startsWith(text)
-                    )
-                    .slice(0, 8),
-            }));
-
+            setFieldResults((prev) => ({ ...prev, country: [] }));
             return;
         }
 
@@ -452,10 +438,26 @@ function LocationPicker({
 
     const handleDirectSearchChange = (event) => {
         const query = event.target.value;
+
         setDirectSearchText(query);
 
         if (debounceRefs.current.direct) {
             clearTimeout(debounceRefs.current.direct);
+        }
+
+        // If the user completely clears the location,
+        // clear the actual Planner value as well.
+        if (!query.trim()) {
+            setDirectLocation(null);
+            setDirectResults([]);
+            setDirectLoading(false);
+            setLevels(EMPTY_LEVELS);
+            setActiveField(null);
+            setFieldText({});
+            setFieldResults({});
+            setError("");
+            onChange?.(null);
+            return;
         }
 
         if (query.trim().length < 2) {
@@ -466,6 +468,7 @@ function LocationPicker({
 
         setDirectResults([]);
         setDirectLoading(true);
+
         debounceRefs.current.direct = setTimeout(() => {
             searchAnyPlace(query);
         }, 250);
@@ -474,14 +477,12 @@ function LocationPicker({
     const clearLocation = (event) => {
         event.stopPropagation();
         setLevels(EMPTY_LEVELS);
-        setDirectLocation(null);
         setActiveField(null);
         setFieldText({});
         setFieldResults({});
         setDirectSearchText("");
         setDirectResults([]);
         setDirectLocation(null);
-        setInputMode("direct");
         setError("");
         onChange?.(null);
     };
@@ -562,7 +563,7 @@ function LocationPicker({
             .join(", ");
     };
 
-    const selectedName = directLocation?.name || value?.name || "";
+    const selectedName = value?.name || "";
 
     const renderLocationIcon = () => (
         <svg
@@ -601,8 +602,8 @@ function LocationPicker({
             direction === "up"
                 ? "m18 15-6-6-6 6"
                 : direction === "right"
-                  ? "m9 18 6-6-6-6"
-                  : "m6 9 6 6 6-6";
+                    ? "m9 18 6-6-6-6"
+                    : "m6 9 6 6 6-6";
 
         return (
             <svg
@@ -648,11 +649,10 @@ function LocationPicker({
                 <button
                     type="button"
                     onClick={() => openField(level)}
-                    className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl border bg-white px-3.5 text-left transition dark:bg-slate-900 ${
-                        isActive
+                    className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl border bg-white px-3.5 text-left transition dark:bg-slate-900 ${isActive
                             ? "border-blue-500 ring-2 ring-blue-500/10"
                             : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
-                    }`}
+                        }`}
                 >
                     <span className="shrink-0 text-slate-400">
                         {renderLocationIcon()}
@@ -770,147 +770,97 @@ function LocationPicker({
                 )}
             </div>
 
-            {directSearchText.trim().length >= 2 && (
-                <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                    {directLoading && directResults.length === 0 ? (
-                        <div className="px-3 py-7 text-center text-xs text-slate-500">
-                            Searching locations...
-                        </div>
-                    ) : directResults.length > 0 ? (
-                        directResults.map((location, index) => {
-                            const normalized = normalizeLocation(location);
-                            return (
-                                <button
-                                    key={location.id ?? `${location.name}-${index}`}
-                                    type="button"
-                                    onClick={() => {
-                                        const isCountry =
-                                            normalized.featureCode === "ADM0";
-
-                                        if (isCountry) {
-                                            // A real country starts the optional
-                                            // State -> District -> Taluka -> City
-                                            // hierarchy.
-                                            const next = {
-                                                ...EMPTY_LEVELS,
-                                                country: normalized,
-                                            };
-
-                                            setDirectLocation(null);
-                                            setInputMode("hierarchy");
-                                            setLevels(next);
+            {directSearchText.trim().length >= 2 &&
+                !(directLocation?.name &&
+                    directLocation.name === directSearchText.trim()) && (
+                    <div className="mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        {directLoading && directResults.length === 0 ? (
+                            <div className="px-3 py-7 text-center text-xs text-slate-500">
+                                Searching locations...
+                            </div>
+                        ) : directResults.length > 0 ? (
+                            directResults.map((location, index) => {
+                                const normalized = normalizeDirectLocation(location);
+                                return (
+                                    <button
+                                        key={location.id ?? `${location.name}-${index}`}
+                                        type="button"
+                                        onClick={() => {
+                                            // Direct search is independent from the hierarchy.
+                                            // Never turn Pune/Satara/etc. into Country.
+                                            setLevels(EMPTY_LEVELS);
+                                            setActiveField(null);
                                             setFieldText({});
                                             setFieldResults({});
-                                            setDirectSearchText("");
+                                            setDirectLocation(normalized);
+                                            setDirectSearchText(normalized.name);
                                             setDirectResults([]);
-                                            setActiveField(null);
                                             setError("");
                                             onChange?.(normalized);
-                                            return;
-                                        }
-
-                                        // A normal place result is a final location.
-                                        // Do not treat Kalsubai, Taj Mahal, Wagholi,
-                                        // etc. as a country and do not load children.
-                                        setDirectLocation(normalized);
-                                        setInputMode("direct");
-                                        setLevels({ ...EMPTY_LEVELS });
-                                        setFieldText({});
-                                        setFieldResults({});
-                                        setDirectSearchText("");
-                                        setDirectResults([]);
-                                        setActiveField(null);
-                                        setError("");
-                                        onChange?.(normalized);
-                                    }}
-                                    className="flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
-                                >
-                                    <span className="mt-0.5 text-slate-400">
-                                        {renderLocationIcon()}
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                                            {normalized.name}
+                                        }}
+                                        className="flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
+                                    >
+                                        <span className="mt-0.5 text-slate-400">
+                                            {renderLocationIcon()}
                                         </span>
-                                        {getSearchSubtitle(normalized) && (
-                                            <span className="mt-0.5 block truncate text-xs text-slate-400">
-                                                {getSearchSubtitle(normalized)}
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                                {normalized.name}
                                             </span>
-                                        )}
-                                    </span>
-                                </button>
-                            );
-                        })
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const typed = directSearchText.trim();
-                                const manual = {
-                                    id: null,
-                                    name: typed,
-                                    asciiName: typed,
-                                    countryName: levels.country?.name || "",
-                                    countryCode: levels.country?.countryCode || "",
-                                    state: levels.state?.name || "",
-                                    district: levels.district?.name || "",
-                                    subdistrict: levels.subdistrict?.name || "",
-                                    latitude: null,
-                                    longitude: null,
-                                    manual: true,
-                                };
+                                            {getSearchSubtitle(normalized) && (
+                                                <span className="mt-0.5 block truncate text-xs text-slate-400">
+                                                    {getSearchSubtitle(normalized)}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const typed = directSearchText.trim();
+                                    const manual = {
+                                        id: null,
+                                        name: typed,
+                                        asciiName: typed,
+                                        countryName: "",
+                                        countryCode: "",
+                                        state: "",
+                                        district: "",
+                                        subdistrict: "",
+                                        latitude: null,
+                                        longitude: null,
+                                        manual: true,
+                                    };
 
-                                setDirectLocation(manual);
-                                setInputMode("direct");
-                                setLevels({ ...EMPTY_LEVELS });
-                                setFieldText({});
-                                setFieldResults({});
-                                setDirectSearchText("");
-                                setDirectResults([]);
-                                setActiveField(null);
-                                setError("");
-                                onChange?.(manual);
-                            }}
-                            className="w-full rounded-lg px-3 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
-                        >
-                            <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                                Use “{directSearchText.trim()}”
-                            </span>
-                            <span className="mt-0.5 block text-xs text-slate-400">
-                                Continue with this place name
-                            </span>
-                        </button>
-                    )}
-                </div>
-            )}
+                                    setLevels(EMPTY_LEVELS);
+                                    setActiveField(null);
+                                    setFieldText({});
+                                    setFieldResults({});
+                                    setDirectLocation(manual);
+                                    setDirectSearchText(manual.name);
+                                    setDirectResults([]);
+                                    setError("");
+                                    onChange?.(manual);
+                                }}
+                                className="w-full rounded-lg px-3 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                            >
+                                <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                    Use “{directSearchText.trim()}”
+                                </span>
+                                <span className="mt-0.5 block text-xs text-slate-400">
+                                    Continue with this place name
+                                </span>
+                            </button>
+                        )}
+                    </div>
+                )}
         </div>
     );
 
     const hasHierarchy = Object.values(levels).some(Boolean);
-
-    const switchToHierarchy = async () => {
-        setInputMode("hierarchy");
-        setDirectSearchText("");
-        setDirectResults([]);
-        setActiveField(null);
-        setError("");
-
-        if (!levels.country) {
-            const list = await fetchCountries();
-            setFieldResults((prev) => ({
-                ...prev,
-                country: list.slice(0, 100),
-            }));
-        }
-    };
-
-    const switchToDirectSearch = () => {
-        setInputMode("direct");
-        setActiveField(null);
-        setFieldText({});
-        setFieldResults({});
-        setError("");
-    };
 
     return (
         <div ref={containerRef} className="relative w-full">
@@ -918,228 +868,37 @@ function LocationPicker({
                 {label}
             </label>
 
-            {inputMode === "direct" ? (
-                <div className="relative">
-                    <div className="relative">
-                        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                            {renderSearchIcon()}
-                        </span>
+            <div className="space-y-3">
+                {renderDirectSearch()}
 
-                        <input
-                            type="text"
-                            value={directSearchText || directLocation?.name || ""}
-                            onFocus={(event) => {
-                                if (directLocation && !directSearchText) {
-                                    event.currentTarget.select();
-                                    setDirectLocation(null);
-                                    setDirectSearchText("");
-                                    onChange?.(null);
-                                }
-                            }}
-                            onChange={handleDirectSearchChange}
-                            placeholder={placeholder || "Search any place..."}
-                            className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
-                        />
-
-                        {directLoading && (
-                            <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                                <span className="block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
-                            </span>
-                        )}
-                    </div>
-
-                    {directSearchText.trim().length >= 2 && (
-                        <div className="absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                            {directLoading && directResults.length === 0 ? (
-                                <div className="px-3 py-7 text-center text-xs text-slate-500">
-                                    Searching locations...
-                                </div>
-                            ) : directResults.length > 0 ? (
-                                directResults.map((location, index) => {
-                                    const normalized = normalizeLocation(location);
-                                    const isCountry = normalized.featureCode === "ADM0";
-
-                                    return (
-                                        <button
-                                            key={location.id ?? `${location.name}-${index}`}
-                                            type="button"
-                                            onClick={() => {
-                                                if (isCountry) {
-                                                    const next = {
-                                                        ...EMPTY_LEVELS,
-                                                        country: normalized,
-                                                    };
-
-                                                    setDirectLocation(null);
-                                                    setInputMode("hierarchy");
-                                                    setLevels(next);
-                                                    setFieldText({});
-                                                    setFieldResults({});
-                                                    setDirectSearchText("");
-                                                    setDirectResults([]);
-                                                    setActiveField(null);
-                                                    setError("");
-                                                    onChange?.(normalized);
-                                                    return;
-                                                }
-
-                                                setDirectLocation(normalized);
-                                                setInputMode("direct");
-                                                setLevels({ ...EMPTY_LEVELS });
-                                                setFieldText({});
-                                                setFieldResults({});
-                                                setDirectSearchText(normalized.name);
-                                                setDirectResults([]);
-                                                setActiveField(null);
-                                                setError("");
-                                                onChange?.(normalized);
-                                            }}
-                                            className="flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
-                                        >
-                                            <span className="mt-0.5 shrink-0 text-slate-400">
-                                                {renderLocationIcon()}
-                                            </span>
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                                                    {normalized.name}
-                                                </span>
-                                                {getSearchSubtitle(normalized) && (
-                                                    <span className="mt-0.5 block truncate text-xs text-slate-400">
-                                                        {getSearchSubtitle(normalized)}
-                                                    </span>
-                                                )}
-                                            </span>
-                                            {isCountry && (
-                                                <span className="shrink-0 text-xs text-slate-400">
-                                                    Country
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
-                                })
-                            ) : !directLoading && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const typed = directSearchText.trim();
-                                        if (!typed) return;
-
-                                        const manual = {
-                                            id: null,
-                                            name: typed,
-                                            asciiName: typed,
-                                            countryName: "",
-                                            countryCode: "",
-                                            state: "",
-                                            district: "",
-                                            subdistrict: "",
-                                            adminCode1: "",
-                                            adminCode2: "",
-                                            adminCode3: "",
-                                            latitude: null,
-                                            longitude: null,
-                                            manual: true,
-                                        };
-
-                                        setDirectLocation(manual);
-                                        setInputMode("direct");
-                                        setLevels({ ...EMPTY_LEVELS });
-                                        setDirectSearchText("");
-                                        setDirectResults([]);
-                                        setActiveField(null);
-                                        setError("");
-                                        onChange?.(manual);
-                                    }}
-                                    className="w-full rounded-lg px-3 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
-                                >
-                                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                                        Use “{directSearchText.trim()}”
-                                    </span>
-                                    <span className="mt-0.5 block text-xs text-slate-400">
-                                        Continue with this place name
-                                    </span>
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {!directSearchText.trim() && !directLocation && (
-                        <button
-                            type="button"
-                            onClick={switchToHierarchy}
-                            className="mt-2 text-xs font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                            Browse by country
-                        </button>
-                    )}
-
-                    {directLocation && (
-                        <div className="mt-2 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60">
-                            <div className="min-w-0">
-                                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    Selected location
-                                </div>
-                                <div className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                                    {directLocation.name}
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={clearLocation}
-                                className="ml-3 shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                                aria-label={`Clear ${label}`}
-                            >
-                                <CloseIcon />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            ) : (
                 <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                        <div>
-                            <div className="text-sm font-semibold text-slate-800 dark:text-white">
-                                Location details
-                            </div>
-                            <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                Lower levels are optional. Select only the detail you need.
-                            </div>
+                    <div className="mb-3">
+                        <div className="text-sm font-semibold text-slate-800 dark:text-white">
+                            Location details
                         </div>
-
-                        <button
-                            type="button"
-                            onClick={switchToDirectSearch}
-                            className="shrink-0 text-xs font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                            Change
-                        </button>
+                        <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            Select as much detail as you need. Lower levels are optional.
+                        </div>
                     </div>
 
                     <div className="space-y-3">
                         {LEVELS.map((level, index) => renderField(level, index))}
                     </div>
+                </div>
+            </div>
 
-                    {hasHierarchy && selectedName && (
-                        <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/60">
-                            <div className="min-w-0">
-                                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                    Selected location
-                                </div>
-                                <div className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                                    {selectedName}
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={clearLocation}
-                                className="ml-3 shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                                aria-label={`Clear ${label}`}
-                            >
-                                <CloseIcon />
-                            </button>
-                        </div>
-                    )}
+            {hasHierarchy && selectedName && (
+                <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-800">
+                    <span className="truncate text-slate-500 dark:text-slate-400">
+                        Selected: <span className="font-medium text-slate-700 dark:text-slate-200">{selectedName}</span>
+                    </span>
+                    <button
+                        type="button"
+                        onClick={clearLocation}
+                        className="ml-3 shrink-0 font-medium text-slate-500 hover:text-red-500"
+                    >
+                        Clear
+                    </button>
                 </div>
             )}
 

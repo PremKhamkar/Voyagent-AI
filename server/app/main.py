@@ -16,6 +16,10 @@ from app.services.location_service import (
     search_locations,
 )
 
+from app.services.weather_service import (
+    get_weather,
+)
+
 
 app = FastAPI()
 
@@ -107,6 +111,44 @@ def generate_trip(trip: TripRequest):
                 "AI travel planning service is "
                 f"temporarily unavailable. {str(e)}"
             ),
+        )
+
+
+# ============================================================
+# Live Weather Route
+# ============================================================
+
+@app.get("/weather")
+def weather(destination: str):
+
+    try:
+        if not destination.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Destination is required.",
+            )
+
+        weather_data = get_weather(
+            destination.strip()
+        )
+
+        return {
+            "status": "success",
+            "weather": weather_data,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(
+            "WEATHER ROUTE ERROR:",
+            e
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to fetch weather information.",
         )
 
 
@@ -207,6 +249,7 @@ def locations_search(
     adminCode2: str | None = None,
     adminCode3: str | None = None,
 ):
+
     try:
         if len(q.strip()) < 2:
             return {

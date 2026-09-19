@@ -394,7 +394,7 @@ function Planner() {
             >
 
               {/* Source + Destination */}
-              <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-end">
+              <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
 
                 {/* Source */}
                 <div>
@@ -434,7 +434,7 @@ function Planner() {
                     }));
                   }}
                   disabled={!trip.sourceCity && !trip.destination}
-                  className="mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:border-slate-500 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
+                  className="mx-auto mt-[3.65rem] flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:border-slate-500 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                   aria-label="Swap source and destination"
                 >
                   <svg

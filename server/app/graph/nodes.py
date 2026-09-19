@@ -7,10 +7,43 @@ from app.services.places_service import (
 )
 
 
+# ============================================================
+# Weather Formatting Helper
+# ============================================================
+
+def format_weather_for_ai(weather):
+    """
+    Converts structured weather data into readable text
+    for the AI planning agents.
+
+    The actual weather_info stored in LangGraph remains
+    a structured dictionary so the frontend can use it.
+    """
+
+    return f"""
+Current Weather in {weather.get('city', 'Unknown')}, {weather.get('country', 'Unknown')}:
+
+Temperature: {weather.get('temperature', 'N/A')}°C
+Feels Like: {weather.get('feels_like', 'N/A')}°C
+Condition: {weather.get('weather', 'N/A')}
+Humidity: {weather.get('humidity', 'N/A')}%
+Wind Speed: {weather.get('wind_speed', 'N/A')} m/s
+Wind Direction: {weather.get('wind_direction', 'N/A')}
+Pressure: {weather.get('pressure', 'N/A')} hPa
+Visibility: {weather.get('visibility', 'N/A')} km
+Cloud Cover: {weather.get('clouds', 'N/A')}%
+Rain Probability: {weather.get('rain_probability', 'N/A')}
+"""
+
+
+# ============================================================
+# Destination Node
+# ============================================================
+
 def destination_node(state: TravelState):
 
     print("LangGraph: Destination Node Running...")
-    
+
     attractions = []
 
     try:
@@ -24,6 +57,7 @@ def destination_node(state: TravelState):
         )
 
         attractions = attractions[:15]
+
     except Exception as e:
         print(f"Places Error: {e}")
 
@@ -93,40 +127,57 @@ def destination_node(state: TravelState):
     """
 
     destination_plan = generate_ai_response(
-    prompt,
-    max_completion_tokens=1200
-)
+        prompt,
+        max_completion_tokens=1200
+    )
 
     print(destination_plan)
 
     return {
-    "destination_plan": destination_plan
+        "destination_plan": destination_plan
     }
-    
+
+
+# ============================================================
+# Weather Node
+# ============================================================
+
 def weather_node(state: TravelState):
 
     print("LangGraph: Weather Node Running...")
 
-    weather = get_weather(state["destination"])
+    weather = get_weather(
+        state["destination"]
+    )
 
-    weather_info = f"""
-Current Weather in {weather['city']}, {weather['country']}:
+    # IMPORTANT:
+    # Keep weather as a structured dictionary.
+    # Do NOT convert it into a formatted string here.
+    #
+    # This allows the frontend WeatherCard to display
+    # temperature, humidity, wind, visibility, etc.
+    # individually.
 
-Temperature: {weather['temperature']}°C
-Feels Like: {weather['feels_like']}°C
-Condition: {weather['weather']}
-Humidity: {weather['humidity']}%
-Wind Speed: {weather['wind_speed']} m/s
-"""
+    print("\n========== WEATHER ==========")
+    print(weather)
+    print("=============================\n")
 
     return {
-        "weather_info": weather_info
+        "weather_info": weather
     }
 
+
+# ============================================================
+# Budget Node
+# ============================================================
 
 def budget_node(state: TravelState):
 
     print("LangGraph: Budget Node Running...")
+
+    weather_text = format_weather_for_ai(
+        state["weather_info"]
+    )
 
     prompt = f"""
 You are a travel budget planner.
@@ -141,13 +192,15 @@ Total Budget: ₹{state['budget']}
 Travelers: {state['travelers']}
 Travel Type: {state['travel_type']}
 Preferences: {", ".join(state['preferences'])}
+
 Weather Information:
-{state['weather_info']}
+{weather_text}
 
 Destination Analysis:
 {state['destination_plan']}
 
-    Divide the available budget into:
+Divide the available budget into:
+
 - Accommodation
 - Food
 - Local transportation
@@ -157,26 +210,35 @@ Destination Analysis:
 Consider the current weather while planning the budget.
 
 For example:
+
 - If rain is expected, keep some budget for umbrellas/raincoats or indoor activities.
 - If it is very hot, consider drinking water, cooling and transport expenses.
 - If the weather is pleasant, outdoor activities can be given more importance.
 
 Keep the total allocation within ₹{state['budget']}.
-    """
+"""
 
     budget_plan = generate_ai_response(
-    prompt,
-    max_completion_tokens=1000
-)
+        prompt,
+        max_completion_tokens=1000
+    )
 
     return {
         "budget_plan": budget_plan
     }
 
 
+# ============================================================
+# Accommodation Node
+# ============================================================
+
 def accommodation_node(state: TravelState):
 
     print("LangGraph: Accommodation Node Running...")
+
+    weather_text = format_weather_for_ai(
+        state["weather_info"]
+    )
 
     prompt = f"""
 You are an accommodation planning specialist.
@@ -191,48 +253,59 @@ Total Budget: ₹{state['budget']}
 Travelers: {state['travelers']}
 Travel Type: {state['travel_type']}
 Preferences: {", ".join(state['preferences'])}
+
 Weather Information:
-{state['weather_info']}
+{weather_text}
 
-    Destination Analysis:
-    {state['destination_plan']}
+Destination Analysis:
+{state['destination_plan']}
 
-    Budget Plan:
-    {state['budget_plan']}
-    
-    Consider the weather while recommending accommodation.
+Budget Plan:
+{state['budget_plan']}
+
+Consider the weather while recommending accommodation.
 
 For example:
+
 - During rainy weather, prefer hotels with good indoor facilities.
 - During hot weather, recommend air-conditioned accommodation.
 - During cold weather, recommend comfortable heated accommodation if available.
 
-    Recommend:
-    - Suitable areas/neighborhoods to stay
-    - Appropriate accommodation type
-    - Approximate accommodation budget
-    - Why the suggested area fits the travelers
-    - Important accommodation considerations
+Recommend:
 
-    Stay within the accommodation allocation from the budget plan.
+- Suitable areas/neighborhoods to stay
+- Appropriate accommodation type
+- Approximate accommodation budget
+- Why the suggested area fits the travelers
+- Important accommodation considerations
 
-    Do not invent real-time hotel prices or availability.
-    Do not create the complete itinerary.
-    """
+Stay within the accommodation allocation from the budget plan.
+
+Do not invent real-time hotel prices or availability.
+Do not create the complete itinerary.
+"""
 
     accommodation_plan = generate_ai_response(
-    prompt,
-    max_completion_tokens=1000
-)
+        prompt,
+        max_completion_tokens=1000
+    )
 
     return {
         "accommodation_plan": accommodation_plan
     }
 
 
+# ============================================================
+# Itinerary Node
+# ============================================================
+
 def itinerary_node(state: TravelState):
 
     print("LangGraph: Itinerary Node Running...")
+
+    weather_text = format_weather_for_ai(
+        state["weather_info"]
+    )
 
     prompt = f"""
 Create a complete, practical and user-friendly travel itinerary.
@@ -263,17 +336,21 @@ Travel Style:
 Preferences:
 {", ".join(state['preferences'])}
 
+
 WEATHER
 
-{state['weather_info']}
+{weather_text}
+
 
 DESTINATION RECOMMENDATIONS
 
 {state['destination_plan']}
 
+
 BUDGET PLAN
 
 {state['budget_plan']}
+
 
 ACCOMMODATION
 
