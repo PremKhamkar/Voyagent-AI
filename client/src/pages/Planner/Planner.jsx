@@ -31,6 +31,9 @@ function Planner() {
   const [itinerary, setItinerary] = useState(null);
 
   const [weatherInfo, setWeatherInfo] = useState("");
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState("");
+  const [weatherFetchedAt, setWeatherFetchedAt] = useState(null);
   const [budgetPlan, setBudgetPlan] = useState("");
   const [destinationPlan, setDestinationPlan] = useState("");
   const [accommodationPlan, setAccommodationPlan] = useState("");
@@ -81,6 +84,43 @@ function Planner() {
           : [...previous.preferences, preference],
       };
     });
+  }
+
+  async function handleRefreshWeather() {
+    if (!generatedTrip?.destination) {
+      return;
+    }
+
+    setWeatherLoading(true);
+    setWeatherError("");
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/weather?destination=${encodeURIComponent(
+          generatedTrip.destination
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+          "Unable to refresh weather information."
+        );
+      }
+
+      setWeatherInfo(data.weather || data.weather_info || "");
+      setWeatherFetchedAt(new Date());
+    } catch (error) {
+      console.error("Weather refresh error:", error);
+      setWeatherError(
+        error.message ||
+        "Unable to refresh weather information."
+      );
+    } finally {
+      setWeatherLoading(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -154,6 +194,9 @@ function Planner() {
     setGeneratedTrip(null);
     setItinerary(null);
     setWeatherInfo("");
+    setWeatherLoading(false);
+    setWeatherError("");
+    setWeatherFetchedAt(null);
     setBudgetPlan("");
     setDestinationPlan("");
     setAccommodationPlan("");
@@ -184,6 +227,7 @@ function Planner() {
       setItinerary(data.itinerary);
 
       setWeatherInfo(data.weather_info || "");
+      setWeatherFetchedAt(new Date());
       setBudgetPlan(data.budget_plan || "");
       setDestinationPlan(data.destination_plan || "");
       setAccommodationPlan(
@@ -362,7 +406,7 @@ function Planner() {
       {/* Planner */}
       <main className="px-6 py-10">
 
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto w-full min-w-0 max-w-6xl">
 
           {/* Form Card */}
           <div
@@ -1084,23 +1128,91 @@ function Planner() {
             budgetPlan ||
             destinationPlan ||
             accommodationPlan) && (
-              <div className="mt-8 grid gap-6">
+              <div className="mt-8 grid w-full min-w-0 gap-6">
 
-                <WeatherCard
-                  content={weatherInfo}
-                />
+                {/* Live Weather */}
+                {weatherInfo && (
+                  <section className="w-full min-w-0 max-w-full overflow-hidden">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-600">
+                          Live Weather
+                        </p>
+                        <h3 className="mt-1 text-lg font-bold text-slate-900">
+                          Weather at your destination
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Refresh the latest weather information for your trip.
+                        </p>
+                      </div>
 
-                <BudgetCard
-                  content={budgetPlan}
-                />
+                      <div className="flex flex-col items-start gap-2 sm:items-end">
+                        <button
+                          type="button"
+                          onClick={handleRefreshWeather}
+                          disabled={weatherLoading}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label="Refresh weather information"
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={weatherLoading ? "animate-spin" : ""}
+                          >
+                            <path d="M20 11a8.1 8.1 0 0 0-14.9-4L3 10" />
+                            <path d="M3 4v6h6" />
+                            <path d="M4 13a8.1 8.1 0 0 0 14.9 4L21 14" />
+                            <path d="M21 20v-6h-6" />
+                          </svg>
+                          {weatherLoading ? "Refreshing..." : "Refresh Weather"}
+                        </button>
 
-                <AttractionCard
-                  content={destinationPlan}
-                />
+                        {weatherFetchedAt && !weatherError && (
+                          <p className="text-xs text-slate-400">
+                            Updated {weatherFetchedAt.toLocaleTimeString("en-IN", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-                <AccommodationCard
-                  content={accommodationPlan}
-                />
+                    {weatherError && (
+                      <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                        {weatherError}
+                      </div>
+                    )}
+
+                    <WeatherCard
+                      content={weatherInfo}
+                    />
+                  </section>
+                )}
+
+                <div className="w-full min-w-0 max-w-full overflow-hidden">
+                  <BudgetCard
+                    content={budgetPlan}
+                  />
+                </div>
+
+                <div className="w-full min-w-0 max-w-full overflow-hidden">
+                  <AttractionCard
+                    content={destinationPlan}
+                  />
+                </div>
+
+                <div className="w-full min-w-0 max-w-full overflow-hidden">
+                  <AccommodationCard
+                    content={accommodationPlan}
+                  />
+                </div>
 
               </div>
             )}
