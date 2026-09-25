@@ -68,8 +68,8 @@ function Planner() {
         ...previous,
         preferences: alreadySelected
           ? previous.preferences.filter(
-              (item) => item !== preference
-            )
+            (item) => item !== preference
+          )
           : [...previous.preferences, preference],
       };
     });
@@ -168,7 +168,7 @@ function Planner() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Failed to generate your trip."
+          "Failed to generate your trip."
         );
       }
 
@@ -234,13 +234,13 @@ function Planner() {
     const alreadyExists = existingTrips.some(
       (savedTrip) =>
         savedTrip.destination ===
-          generatedTrip.destination &&
+        generatedTrip.destination &&
         savedTrip.startDate ===
-          generatedTrip.startDate &&
+        generatedTrip.startDate &&
         savedTrip.endDate ===
-          generatedTrip.endDate &&
+        generatedTrip.endDate &&
         savedTrip.budget ===
-          generatedTrip.budget
+        generatedTrip.budget
     );
 
     if (alreadyExists) {
@@ -697,10 +697,9 @@ function Planner() {
                           text-sm
                           font-medium
                           transition
-                          ${
-                            selected
-                              ? "bg-teal-500 text-white shadow-sm"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          ${selected
+                            ? "bg-teal-500 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                           }
                         `}
                       >
@@ -793,10 +792,9 @@ function Planner() {
                     shadow-sm
                     transition-all
                     duration-200
-                    ${
-                      isSaved
-                        ? "cursor-default bg-emerald-100 text-emerald-700"
-                        : "bg-cyan-600 text-white hover:-translate-y-0.5 hover:bg-cyan-700 hover:shadow-md"
+                    ${isSaved
+                      ? "cursor-default bg-emerald-100 text-emerald-700"
+                      : "bg-cyan-600 text-white hover:-translate-y-0.5 hover:bg-cyan-700 hover:shadow-md"
                     }
                   `}
                 >
@@ -1061,52 +1059,60 @@ function Planner() {
           )}
 
           {/* AI Planning Cards */}
-          {(weatherInfo ||
-            budgetPlan ||
-            destinationPlan ||
-            accommodationPlan) && (
-            <div className="mt-8 grid gap-6">
+{(weatherInfo ||
+  budgetPlan ||
+  destinationPlan ||
+  accommodationPlan) && (
+  <div className="mt-8 grid gap-6">
 
-              <WeatherCard
-                content={weatherInfo}
-              />
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
+      <WeatherCard
+        content={weatherInfo}
+      />
+    </div>
 
-              <BudgetCard
-                content={budgetPlan}
-              />
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
+      <BudgetCard
+        content={budgetPlan}
+      />
+    </div>
 
-              <AttractionCard
-                content={destinationPlan}
-              />
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
+      <AttractionCard
+        content={destinationPlan}
+        destination={generatedTrip?.destination}
+      />
+    </div>
 
-              <AccommodationCard
-                content={accommodationPlan}
-              />
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
+      <AccommodationCard
+        content={accommodationPlan}
+      />
+    </div>
 
-            </div>
-          )}
-
-          {/* Saved Trips Link */}
-          {generatedTrip && (
-            <div className="mt-8 flex justify-center pb-6">
-              <Link
-                to="/saved-trips"
-                className="
+  </div>
+)}
+        {/* Saved Trips Link */}
+        {generatedTrip && (
+          <div className="mt-8 flex justify-center pb-6">
+            <Link
+              to="/saved-trips"
+              className="
                   text-sm
                   font-semibold
                   text-cyan-600
                   transition
                   hover:text-cyan-700
                 "
-              >
-                View Saved Trips →
-              </Link>
-            </div>
-          )}
+            >
+              View Saved Trips →
+            </Link>
+          </div>
+        )}
 
-        </div>
-      </main>
     </div>
+  </main >
+    </div >
   );
 }
 

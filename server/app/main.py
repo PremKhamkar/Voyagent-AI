@@ -4,6 +4,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.models.trip import TripRequest
 from app.graph.travel_graph import travel_graph
 
+from app.models.trip import TripRequest
+from app.graph.travel_graph import travel_graph
+
+from app.services.chatbot_service import (
+    generate_chatbot_response
+)
+
+from app.services.location_service import (
+    get_countries,
+    get_children,
+    search_locations,
+)
+
+from app.services.weather_service import (
+    get_weather,
+)
+
+from app.services.places_service import (
+    get_attractions_for_destination
+)
 
 app = FastAPI()
 
@@ -61,6 +81,36 @@ def generate_trip(trip: TripRequest):
         print("ERROR:", e)
 
         raise HTTPException(
+    status_code=503,
+    detail=(
+        f"AI travel planning service is temporarily unavailable. {str(e)}"
+    ),
+)
+
+
+@app.get("/attractions")
+def get_destination_attractions(destination: str):
+    try:
+        attractions = get_attractions_for_destination(
+            destination
+        )
+
+        return {
+            "status": "success",
+            "destination": destination,
+            "attractions": attractions,
+        }
+
+    except Exception as error:
+        print(
+            "ATTRACTIONS ERROR:",
+            error,
+        )
+
+        raise HTTPException(
             status_code=503,
-            detail=f"AI travel planning service is temporarily unavailable. {str(e)}"
+            detail=(
+                "Unable to load tourist attractions "
+                "right now."
+            ),
         )
