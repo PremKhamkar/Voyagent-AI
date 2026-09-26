@@ -20,8 +20,14 @@ from app.services.weather_service import (
     get_weather,
 )
 
+from app.db.session import Base, engine
+from app.routers.auth import router as auth_router
 
 app = FastAPI()
+
+Base.metadata.create_all(bind=engine)
+
+app.include_router(auth_router)
 
 
 # ============================================================
