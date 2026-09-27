@@ -4,12 +4,14 @@ import { useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
 import Button from "../../components/ui/Button";
+import { useAuth } from "../../context/AuthContext";
 
 function Register({
   isModal = false,
   switchToLogin,
 }) {
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,7 +41,7 @@ function Register({
   const [isLoading, setIsLoading] =
     useState(false);
 
-  function handleRegister(event) {
+  async function handleRegister(event) {
     event.preventDefault();
 
     setFullNameError("");
@@ -83,9 +85,9 @@ function Register({
         "Password is required."
       );
       isValid = false;
-    } else if (password.length < 6) {
+    } else if (password.length < 8) {
       setPasswordError(
-        "Password must be at least 6 characters."
+        "Password must be at least 8 characters."
       );
       isValid = false;
     }
@@ -113,63 +115,22 @@ function Register({
       return;
     }
 
-    /*
-     * Get all locally registered users.
-     */
-    const users = JSON.parse(
-      localStorage.getItem("voyagent_users") ||
-        "{}"
+    setIsLoading(true);
+
+    const result = await register(
+      trimmedName,
+      trimmedEmail,
+      password
     );
 
-    /*
-     * Prevent duplicate accounts.
-     */
-    if (users[trimmedEmail]) {
-      setEmailError(
-        "An account with this email already exists."
-      );
+    setIsLoading(false);
+
+    if (!result.success) {
+      setRegisterError(result.error);
       return;
     }
 
-    setIsLoading(true);
-
-    /*
-     * Create the new account.
-     */
-    users[trimmedEmail] = {
-      name: trimmedName,
-      email: trimmedEmail,
-      password,
-    };
-
-    localStorage.setItem(
-      "voyagent_users",
-      JSON.stringify(users)
-    );
-
-    /*
-     * Keep the current user information available
-     * for the rest of the application.
-     */
-    localStorage.setItem(
-      "userName",
-      trimmedName
-    );
-
-    localStorage.setItem(
-      "userEmail",
-      trimmedEmail
-    );
-
-    setTimeout(() => {
-      setIsLoading(false);
-
-      if (switchToLogin) {
-        switchToLogin();
-      } else {
-        navigate("/login");
-      }
-    }, 1000);
+    navigate("/dashboard", { replace: true });
   }
 
   return (

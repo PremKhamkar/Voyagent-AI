@@ -1,8 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [showSuccess, setShowSuccess] = useState(true);
   const [savedTrips, setSavedTrips] = useState([]);
@@ -40,10 +42,8 @@ function Dashboard() {
   }, [userEmail]);
 
   function handleLogout() {
-    localStorage.removeItem("isLoggedIn");
+    logout();
     localStorage.removeItem("rememberMe");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
 
     navigate("/", { replace: true });
   }

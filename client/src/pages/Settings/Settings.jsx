@@ -1,8 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 
 function Settings() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const userName =
     localStorage.getItem("userName") || "Traveler";
@@ -70,10 +72,8 @@ function Settings() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("isLoggedIn");
+    logout();
     localStorage.removeItem("rememberMe");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
 
     navigate("/", { replace: true });
   }
@@ -308,18 +308,16 @@ function Settings() {
                     )
                   }
                   aria-label="Toggle notifications"
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                    notifications
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${notifications
                       ? "bg-cyan-500"
                       : "bg-slate-300"
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
-                      notifications
+                    className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${notifications
                         ? "left-6"
                         : "left-1"
-                    }`}
+                      }`}
                   />
                 </button>
 
@@ -352,18 +350,16 @@ function Settings() {
                     )
                   }
                   aria-label="Toggle auto save"
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${
-                    autoSave
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${autoSave
                       ? "bg-cyan-500"
                       : "bg-slate-300"
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
-                      autoSave
+                    className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${autoSave
                         ? "left-6"
                         : "left-1"
-                    }`}
+                      }`}
                   />
                 </button>
 

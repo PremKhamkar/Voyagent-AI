@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
 import Button from "../../components/ui/Button";
+import { useAuth } from "../../context/AuthContext";
 
 function Login({
   isModal = false,
@@ -22,8 +23,9 @@ function Login({
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  function handleSignIn(event) {
+  async function handleSignIn(event) {
     event.preventDefault();
 
     setEmailError("");
@@ -55,45 +57,22 @@ function Login({
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      const users = JSON.parse(
-        localStorage.getItem("voyagent_users") || "{}"
-      );
+    const result = await login(trimmedEmail, password);
 
-      const user = users[trimmedEmail];
+    setIsLoading(false);
 
-      if (!user) {
-        setLoginError(
-          "No account found with this email address."
-        );
-        setIsLoading(false);
-        return;
-      }
+    if (!result.success) {
+      setLoginError(result.error);
+      return;
+    }
 
-      if (user.password !== password) {
-        setPasswordError("Incorrect password.");
-        setIsLoading(false);
-        return;
-      }
+    if (rememberMe) {
+      localStorage.setItem("rememberMe", "true");
+    } else {
+      localStorage.removeItem("rememberMe");
+    }
 
-      /*
-       * Create the active session.
-       * These values identify which account is currently logged in.
-       */
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userName", user.name);
-      localStorage.setItem("userEmail", user.email);
-
-      if (rememberMe) {
-        localStorage.setItem("rememberMe", "true");
-      } else {
-        localStorage.removeItem("rememberMe");
-      }
-
-      setIsLoading(false);
-
-      navigate("/", { replace: true });
-    }, 1000);
+    navigate("/dashboard", { replace: true });
   }
 
   return (
