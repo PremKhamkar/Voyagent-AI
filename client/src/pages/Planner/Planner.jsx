@@ -11,6 +11,7 @@ import GoogleMap from "../../components/maps/GoogleMap";
 import LocationPicker from "../../components/location/LocationPicker";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import API_BASE_URL from "../../constants/api";
 
 function Planner() {
   const [trip, setTrip] = useState({
@@ -37,6 +38,9 @@ function Planner() {
   const [budgetPlan, setBudgetPlan] = useState("");
   const [destinationPlan, setDestinationPlan] = useState("");
   const [accommodationPlan, setAccommodationPlan] = useState("");
+  const [attractions, setAttractions] = useState([]);
+  const [attractionsLoading, setAttractionsLoading] = useState(false);
+  const [attractionsError, setAttractionsError] = useState("");
 
   const [isSaved, setIsSaved] = useState(false);
 
@@ -96,7 +100,7 @@ function Planner() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/weather?destination=${encodeURIComponent(
+        `${API_BASE_URL}/weather?destination=${encodeURIComponent(
           generatedTrip.destination
         )}`
       );
@@ -120,6 +124,41 @@ function Planner() {
       );
     } finally {
       setWeatherLoading(false);
+    }
+  }
+
+  async function fetchAttractions(destination) {
+    if (!destination?.trim()) {
+      return;
+    }
+
+    setAttractionsLoading(true);
+    setAttractionsError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/attractions?destination=${encodeURIComponent(
+          destination.trim()
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Unable to load attractions."
+        );
+      }
+
+      setAttractions(data.attractions || []);
+    } catch (error) {
+      console.error("Attractions fetch error:", error);
+      setAttractionsError(
+        error.message || "Unable to load verified attractions."
+      );
+      setAttractions([]);
+    } finally {
+      setAttractionsLoading(false);
     }
   }
 
@@ -200,11 +239,18 @@ function Planner() {
     setBudgetPlan("");
     setDestinationPlan("");
     setAccommodationPlan("");
+    setAttractions([]);
+    setAttractionsError("");
     setIsSaved(false);
+
+    // Fired without awaiting: this only needs the destination name,
+    // which is already known, so it runs alongside /generate-trip
+    // instead of waiting for it to finish first.
+    fetchAttractions(trip.destination);
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/generate-trip",
+        `${API_BASE_URL}/generate-trip`,
         {
           method: "POST",
           headers: {
@@ -246,91 +292,62 @@ function Planner() {
     }
   }
 
-  function handleSaveTrip() {
+  async function handleSaveTrip() {
     if (!generatedTrip || !itinerary) {
       return;
     }
 
-    const userEmail =
-      localStorage.getItem("userEmail");
+    const token = localStorage.getItem("voyagent_token");
 
-    if (!userEmail) {
+    if (!token) {
       setErrors({
-        submit:
-          "Unable to identify your account. Please log in again.",
+        submit: "Please log in again to save this trip.",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sourceCity: generatedTrip.sourceCity,
+          destination: generatedTrip.destination,
+          startDate: generatedTrip.startDate,
+          endDate: generatedTrip.endDate,
+          budget: generatedTrip.budget,
+          travelers: generatedTrip.travelers,
+          travelType: generatedTrip.travelType,
+          preferences: generatedTrip.preferences || [],
+          itinerary,
+          weatherInfo:
+            typeof weatherInfo === "object" && weatherInfo !== null
+              ? weatherInfo
+              : {},
+          budgetPlan,
+          destinationPlan,
+          accommodationPlan,
+        }),
       });
 
-      return;
-    }
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          data.detail || "Unable to save this trip. Please try again."
+        );
+      }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
-
-    const existingTrips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
-
-    const alreadyExists = existingTrips.some(
-      (savedTrip) =>
-        savedTrip.destination ===
-        generatedTrip.destination &&
-        savedTrip.startDate ===
-        generatedTrip.startDate &&
-        savedTrip.endDate ===
-        generatedTrip.endDate &&
-        savedTrip.budget ===
-        generatedTrip.budget
-    );
-
-    if (alreadyExists) {
       setIsSaved(true);
-      return;
+    } catch (error) {
+      setErrors({
+        submit:
+          error.message ||
+          "Unable to save this trip. Please try again.",
+      });
     }
-
-    const savedTrip = {
-      id: Date.now(),
-
-      savedAt: new Date().toISOString(),
-
-      sourceCity: generatedTrip.sourceCity,
-
-      destination: generatedTrip.destination,
-
-      startDate: generatedTrip.startDate,
-
-      endDate: generatedTrip.endDate,
-
-      budget: generatedTrip.budget,
-
-      travelers: generatedTrip.travelers,
-
-      travelType: generatedTrip.travelType,
-
-      preferences:
-        generatedTrip.preferences || [],
-
-      itinerary,
-
-      weatherInfo,
-
-      budgetPlan,
-
-      destinationPlan,
-
-      accommodationPlan,
-    };
-
-    const updatedTrips = [
-      savedTrip,
-      ...existingTrips,
-    ];
-
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(updatedTrips)
-    );
-
-    setIsSaved(true);
   }
 
   // Location Picker handlers
@@ -810,7 +827,10 @@ function Planner() {
               {/* Agent Flow */}
               {loading && (
                 <div className="pt-2">
-                  <AgentFlow />
+                  <AgentFlow
+                    attractionsLoading={attractionsLoading}
+                    attractionsError={attractionsError}
+                  />
                 </div>
               )}
 
@@ -1127,7 +1147,9 @@ function Planner() {
           {(weatherInfo ||
             budgetPlan ||
             destinationPlan ||
-            accommodationPlan) && (
+            accommodationPlan ||
+            attractionsLoading ||
+            attractions.length > 0) && (
               <div className="mt-8 grid w-full min-w-0 gap-6">
 
                 {/* Live Weather */}
@@ -1204,6 +1226,9 @@ function Planner() {
 
                 <div className="w-full min-w-0 max-w-full overflow-hidden">
                   <AttractionCard
+                    attractions={attractions}
+                    isLoading={attractionsLoading}
+                    error={attractionsError}
                     content={destinationPlan}
                   />
                 </div>

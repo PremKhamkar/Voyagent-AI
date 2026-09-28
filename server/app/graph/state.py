@@ -1,8 +1,7 @@
-from typing import TypedDict, List
+from typing import TypedDict
 
 
 class TravelState(TypedDict):
-
     source_city: str
     destination: str
     start_date: str
@@ -10,7 +9,7 @@ class TravelState(TypedDict):
     budget: float
     travelers: int
     travel_type: str
-    preferences: List[str]
+    preferences: list[str]
 
     budget_plan: str
     itinerary: str

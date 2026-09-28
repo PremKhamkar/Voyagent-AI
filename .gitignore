@@ -23,3 +23,9 @@ server/.env
 
 # Root node modules
 node_modules/
+*.db
+*.sqlite
+*.sqlite3
+.vscode/*
+!.vscode/extensions.json
+.idea

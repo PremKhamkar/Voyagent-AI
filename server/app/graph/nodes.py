@@ -1,15 +1,13 @@
 from app.services.weather_service import get_weather
 from app.graph.state import TravelState
 from app.services.groq_service import generate_ai_response
-from app.services.places_service import (
-    get_coordinates,
-    get_attractions
-)
+from app.services.places_service import get_coordinates, get_attractions
 
 
 # ============================================================
 # Weather Formatting Helper
 # ============================================================
+
 
 def format_weather_for_ai(weather):
     """
@@ -21,24 +19,25 @@ def format_weather_for_ai(weather):
     """
 
     return f"""
-Current Weather in {weather.get('city', 'Unknown')}, {weather.get('country', 'Unknown')}:
+Current Weather in {weather.get("city", "Unknown")}, {weather.get("country", "Unknown")}:
 
-Temperature: {weather.get('temperature', 'N/A')}°C
-Feels Like: {weather.get('feels_like', 'N/A')}°C
-Condition: {weather.get('weather', 'N/A')}
-Humidity: {weather.get('humidity', 'N/A')}%
-Wind Speed: {weather.get('wind_speed', 'N/A')} m/s
-Wind Direction: {weather.get('wind_direction', 'N/A')}
-Pressure: {weather.get('pressure', 'N/A')} hPa
-Visibility: {weather.get('visibility', 'N/A')} km
-Cloud Cover: {weather.get('clouds', 'N/A')}%
-Rain Probability: {weather.get('rain_probability', 'N/A')}
+Temperature: {weather.get("temperature", "N/A")}°C
+Feels Like: {weather.get("feels_like", "N/A")}°C
+Condition: {weather.get("weather", "N/A")}
+Humidity: {weather.get("humidity", "N/A")}%
+Wind Speed: {weather.get("wind_speed", "N/A")} m/s
+Wind Direction: {weather.get("wind_direction", "N/A")}
+Pressure: {weather.get("pressure", "N/A")} hPa
+Visibility: {weather.get("visibility", "N/A")} km
+Cloud Cover: {weather.get("clouds", "N/A")}%
+Rain Probability: {weather.get("rain_probability", "N/A")}
 """
 
 
 # ============================================================
 # Destination Node
 # ============================================================
+
 
 def destination_node(state: TravelState):
 
@@ -47,14 +46,9 @@ def destination_node(state: TravelState):
     attractions = []
 
     try:
-        latitude, longitude = get_coordinates(
-            state["destination"]
-        )
+        latitude, longitude = get_coordinates(state["destination"])
 
-        attractions = get_attractions(
-            latitude,
-            longitude
-        )
+        attractions = get_attractions(latitude, longitude)
 
         attractions = attractions[:15]
 
@@ -68,13 +62,13 @@ def destination_node(state: TravelState):
 
     Analyze the following trip:
 
-    Source City: {state['source_city']}
-    Destination: {state['destination']}
-    Start Date: {state['start_date']}
-    End Date: {state['end_date']}
-    Travelers: {state['travelers']}
-    Travel Type: {state['travel_type']}
-    Preferences: {", ".join(state['preferences'])}
+    Source City: {state["source_city"]}
+    Destination: {state["destination"]}
+    Start Date: {state["start_date"]}
+    End Date: {state["end_date"]}
+    Travelers: {state["travelers"]}
+    Travel Type: {state["travel_type"]}
+    Preferences: {", ".join(state["preferences"])}
 
     Available Attractions:
     {", ".join(attractions)}
@@ -127,28 +121,24 @@ def destination_node(state: TravelState):
     """
 
     destination_plan = generate_ai_response(
-        prompt,
-        max_completion_tokens=1200
+        prompt, max_completion_tokens=1800, model="openai/gpt-oss-20b"
     )
 
     print(destination_plan)
 
-    return {
-        "destination_plan": destination_plan
-    }
+    return {"destination_plan": destination_plan}
 
 
 # ============================================================
 # Weather Node
 # ============================================================
 
+
 def weather_node(state: TravelState):
 
     print("LangGraph: Weather Node Running...")
 
-    weather = get_weather(
-        state["destination"]
-    )
+    weather = get_weather(state["destination"])
 
     # IMPORTANT:
     # Keep weather as a structured dictionary.
@@ -162,42 +152,39 @@ def weather_node(state: TravelState):
     print(weather)
     print("=============================\n")
 
-    return {
-        "weather_info": weather
-    }
+    return {"weather_info": weather}
 
 
 # ============================================================
 # Budget Node
 # ============================================================
 
+
 def budget_node(state: TravelState):
 
     print("LangGraph: Budget Node Running...")
 
-    weather_text = format_weather_for_ai(
-        state["weather_info"]
-    )
+    weather_text = format_weather_for_ai(state["weather_info"])
 
     prompt = f"""
 You are a travel budget planner.
 
 Create a practical budget plan for this trip.
 
-Source City: {state['source_city']}
-Destination: {state['destination']}
-Start Date: {state['start_date']}
-End Date: {state['end_date']}
-Total Budget: ₹{state['budget']}
-Travelers: {state['travelers']}
-Travel Type: {state['travel_type']}
-Preferences: {", ".join(state['preferences'])}
+Source City: {state["source_city"]}
+Destination: {state["destination"]}
+Start Date: {state["start_date"]}
+End Date: {state["end_date"]}
+Total Budget: ₹{state["budget"]}
+Travelers: {state["travelers"]}
+Travel Type: {state["travel_type"]}
+Preferences: {", ".join(state["preferences"])}
 
 Weather Information:
 {weather_text}
 
 Destination Analysis:
-{state['destination_plan']}
+{state["destination_plan"]}
 
 Divide the available budget into:
 
@@ -215,53 +202,49 @@ For example:
 - If it is very hot, consider drinking water, cooling and transport expenses.
 - If the weather is pleasant, outdoor activities can be given more importance.
 
-Keep the total allocation within ₹{state['budget']}.
+Keep the total allocation within ₹{state["budget"]}.
 """
 
     budget_plan = generate_ai_response(
-        prompt,
-        max_completion_tokens=1000
+        prompt, max_completion_tokens=1800, model="openai/gpt-oss-20b"
     )
 
-    return {
-        "budget_plan": budget_plan
-    }
+    return {"budget_plan": budget_plan}
 
 
 # ============================================================
 # Accommodation Node
 # ============================================================
 
+
 def accommodation_node(state: TravelState):
 
     print("LangGraph: Accommodation Node Running...")
 
-    weather_text = format_weather_for_ai(
-        state["weather_info"]
-    )
+    weather_text = format_weather_for_ai(state["weather_info"])
 
     prompt = f"""
 You are an accommodation planning specialist.
 
 Plan suitable accommodation options for this trip.
 
-Source City: {state['source_city']}
-Destination: {state['destination']}
-Start Date: {state['start_date']}
-End Date: {state['end_date']}
-Total Budget: ₹{state['budget']}
-Travelers: {state['travelers']}
-Travel Type: {state['travel_type']}
-Preferences: {", ".join(state['preferences'])}
+Source City: {state["source_city"]}
+Destination: {state["destination"]}
+Start Date: {state["start_date"]}
+End Date: {state["end_date"]}
+Total Budget: ₹{state["budget"]}
+Travelers: {state["travelers"]}
+Travel Type: {state["travel_type"]}
+Preferences: {", ".join(state["preferences"])}
 
 Weather Information:
 {weather_text}
 
 Destination Analysis:
-{state['destination_plan']}
+{state["destination_plan"]}
 
 Budget Plan:
-{state['budget_plan']}
+{state["budget_plan"]}
 
 Consider the weather while recommending accommodation.
 
@@ -286,26 +269,22 @@ Do not create the complete itinerary.
 """
 
     accommodation_plan = generate_ai_response(
-        prompt,
-        max_completion_tokens=1000
+        prompt, max_completion_tokens=1800, model="openai/gpt-oss-120b"
     )
 
-    return {
-        "accommodation_plan": accommodation_plan
-    }
+    return {"accommodation_plan": accommodation_plan}
 
 
 # ============================================================
 # Itinerary Node
 # ============================================================
 
+
 def itinerary_node(state: TravelState):
 
     print("LangGraph: Itinerary Node Running...")
 
-    weather_text = format_weather_for_ai(
-        state["weather_info"]
-    )
+    weather_text = format_weather_for_ai(state["weather_info"])
 
     prompt = f"""
 Create a complete, practical and user-friendly travel itinerary.
@@ -313,28 +292,28 @@ Create a complete, practical and user-friendly travel itinerary.
 TRIP DETAILS
 
 From:
-{state['source_city']}
+{state["source_city"]}
 
 Destination:
-{state['destination']}
+{state["destination"]}
 
 Start Date:
-{state['start_date']}
+{state["start_date"]}
 
 End Date:
-{state['end_date']}
+{state["end_date"]}
 
 Budget:
-₹{state['budget']}
+₹{state["budget"]}
 
 Travelers:
-{state['travelers']}
+{state["travelers"]}
 
 Travel Style:
-{state['travel_type']}
+{state["travel_type"]}
 
 Preferences:
-{", ".join(state['preferences'])}
+{", ".join(state["preferences"])}
 
 
 WEATHER
@@ -344,22 +323,22 @@ WEATHER
 
 DESTINATION RECOMMENDATIONS
 
-{state['destination_plan']}
+{state["destination_plan"]}
 
 
 BUDGET PLAN
 
-{state['budget_plan']}
+{state["budget_plan"]}
 
 
 ACCOMMODATION
 
-{state['accommodation_plan']}
+{state["accommodation_plan"]}
 
 
 IMPORTANT:
 
-The trip runs from {state['start_date']} to {state['end_date']}.
+The trip runs from {state["start_date"]} to {state["end_date"]}.
 
 Calculate the number of travel days correctly.
 
@@ -460,14 +439,11 @@ OUTPUT RULES:
 """
 
     itinerary = generate_ai_response(
-        prompt,
-        max_completion_tokens=3000
+        prompt, max_completion_tokens=3500, model="llama-3.3-70b-versatile"
     )
 
     print("\n========== ITINERARY ==========\n")
     print(itinerary)
     print("\n===============================\n")
 
-    return {
-        "itinerary": itinerary
-    }
+    return {"itinerary": itinerary}

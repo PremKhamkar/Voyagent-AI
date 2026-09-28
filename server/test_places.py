@@ -1,7 +1,4 @@
-from app.services.places_service import (
-    get_coordinates,
-    get_attractions
-)
+from app.services.places_service import get_attractions, get_coordinates
 
 latitude, longitude = get_coordinates("Goa")
 

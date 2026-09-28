@@ -1,14 +1,13 @@
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
-from app.graph.state import TravelState
 from app.graph.nodes import (
-    destination_node,
-    weather_node,
-    budget_node,
     accommodation_node,
+    budget_node,
+    destination_node,
     itinerary_node,
+    weather_node,
 )
-
+from app.graph.state import TravelState
 
 # Create the graph
 builder = StateGraph(TravelState)

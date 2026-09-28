@@ -5,7 +5,6 @@ from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 
@@ -15,47 +14,29 @@ GEONAMES_USERNAME = os.getenv("GEONAMES_USERNAME")
 
 def _geonames_request(endpoint: str, params: dict):
     if not GEONAMES_USERNAME:
-        raise RuntimeError(
-            "GEONAMES_USERNAME is not configured."
-        )
+        raise RuntimeError("GEONAMES_USERNAME is not configured.")
 
     request_params = {
         **params,
         "username": GEONAMES_USERNAME,
     }
 
-    url = (
-        f"{GEONAMES_BASE_URL}/{endpoint}"
-        f"?{urlencode(request_params)}"
-    )
+    url = f"{GEONAMES_BASE_URL}/{endpoint}?{urlencode(request_params)}"
 
     request = Request(
         url,
-        headers={
-            "User-Agent": "Voyagent-AI/1.0"
-        },
+        headers={"User-Agent": "Voyagent-AI/1.0"},
     )
 
     try:
-        with urlopen(
-            request,
-            timeout=10
-        ) as response:
-
-            data = json.loads(
-                response.read().decode("utf-8")
-            )
+        with urlopen(request, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
 
     except Exception as error:
-        raise RuntimeError(
-            f"GeoNames request failed: {error}"
-        ) from error
+        raise RuntimeError(f"GeoNames request failed: {error}") from error
 
     if "status" in data:
-        message = data["status"].get(
-            "message",
-            "GeoNames API error."
-        )
+        message = data["status"].get("message", "GeoNames API error.")
 
         raise RuntimeError(message)
 
@@ -66,31 +47,24 @@ def _geonames_request(endpoint: str, params: dict):
 # COUNTRIES
 # =========================================================
 
+
 def get_countries():
-    data = _geonames_request(
-        "countryInfoJSON",
-        {}
-    )
+    data = _geonames_request("countryInfoJSON", {})
 
     countries = []
 
-    for country in data.get(
-        "geonames",
-        []
-    ):
-        countries.append({
-            "id": country.get("geonameId"),
-            "name": country.get("countryName"),
-            "countryCode": country.get("countryCode"),
-            "continent": country.get("continent"),
-            "capital": country.get("capital"),
-        })
+    for country in data.get("geonames", []):
+        countries.append(
+            {
+                "id": country.get("geonameId"),
+                "name": country.get("countryName"),
+                "countryCode": country.get("countryCode"),
+                "continent": country.get("continent"),
+                "capital": country.get("capital"),
+            }
+        )
 
-    countries.sort(
-        key=lambda item: (
-            item["name"] or ""
-        ).lower()
-    )
+    countries.sort(key=lambda item: (item["name"] or "").lower())
 
     return countries
 
@@ -98,6 +72,7 @@ def get_countries():
 # =========================================================
 # CHILD LOCATIONS
 # =========================================================
+
 
 def get_children(geoname_id: int):
     data = _geonames_request(
@@ -110,45 +85,24 @@ def get_children(geoname_id: int):
 
     locations = []
 
-    for place in data.get(
-        "geonames",
-        []
-    ):
-        locations.append({
-            "id": place.get("geonameId"),
-            "name": place.get("name"),
-            "asciiName": place.get("asciiName"),
+    for place in data.get("geonames", []):
+        locations.append(
+            {
+                "id": place.get("geonameId"),
+                "name": place.get("name"),
+                "asciiName": place.get("asciiName"),
+                "countryCode": place.get("countryCode"),
+                "adminCode1": place.get("adminCode1"),
+                "adminCode2": place.get("adminCode2"),
+                "adminCode3": place.get("adminCode3"),
+                "featureClass": place.get("fcl"),
+                "featureCode": place.get("fcode"),
+                "latitude": place.get("lat"),
+                "longitude": place.get("lng"),
+            }
+        )
 
-            "countryCode":
-                place.get("countryCode"),
-
-            "adminCode1":
-                place.get("adminCode1"),
-
-            "adminCode2":
-                place.get("adminCode2"),
-
-            "adminCode3":
-                place.get("adminCode3"),
-
-            "featureClass":
-                place.get("fcl"),
-
-            "featureCode":
-                place.get("fcode"),
-
-            "latitude":
-                place.get("lat"),
-
-            "longitude":
-                place.get("lng"),
-        })
-
-    locations.sort(
-        key=lambda item: (
-            item["name"] or ""
-        ).lower()
-    )
+    locations.sort(key=lambda item: (item["name"] or "").lower())
 
     return locations
 
@@ -156,6 +110,7 @@ def get_children(geoname_id: int):
 # =========================================================
 # SEARCH LOCATIONS
 # =========================================================
+
 
 def search_locations(
     query: str,
@@ -218,10 +173,7 @@ def search_locations(
     # Search GeoNames
     # -----------------------------------------------------
 
-    data = _geonames_request(
-        "searchJSON",
-        params
-    )
+    data = _geonames_request("searchJSON", params)
 
     locations = []
 
@@ -241,120 +193,61 @@ def search_locations(
     if not country_code:
         query_lower = query.lower()
 
-        countries_data = _geonames_request(
-            "countryInfoJSON",
-            {}
-        )
+        countries_data = _geonames_request("countryInfoJSON", {})
 
-        for country in countries_data.get(
-            "geonames",
-            []
-        ):
-            country_name = (
-                country.get("countryName")
-                or ""
-            )
+        for country in countries_data.get("geonames", []):
+            country_name = country.get("countryName") or ""
 
-            country_code_value = (
-                country.get("countryCode")
-                or ""
-            )
+            country_code_value = country.get("countryCode") or ""
 
             if (
-                country_name.lower().startswith(
-                    query_lower
-                )
-                or country_code_value.lower()
-                == query_lower
+                country_name.lower().startswith(query_lower)
+                or country_code_value.lower() == query_lower
             ):
-                locations.append({
-                    "id":
-                        country.get("geonameId"),
-
-                    "name":
-                        country_name,
-
-                    "asciiName":
-                        country_name,
-
-                    "countryName":
-                        country_name,
-
-                    "countryCode":
-                        country_code_value,
-
-                    "state": "",
-                    "district": "",
-                    "subdistrict": "",
-
-                    "adminCode1": "",
-                    "adminCode2": "",
-                    "adminCode3": "",
-
-                    "featureClass": "A",
-                    "featureCode": "ADM0",
-
-                    "latitude":
-                        country.get("lat"),
-
-                    "longitude":
-                        country.get("lng"),
-                })
+                locations.append(
+                    {
+                        "id": country.get("geonameId"),
+                        "name": country_name,
+                        "asciiName": country_name,
+                        "countryName": country_name,
+                        "countryCode": country_code_value,
+                        "state": "",
+                        "district": "",
+                        "subdistrict": "",
+                        "adminCode1": "",
+                        "adminCode2": "",
+                        "adminCode3": "",
+                        "featureClass": "A",
+                        "featureCode": "ADM0",
+                        "latitude": country.get("lat"),
+                        "longitude": country.get("lng"),
+                    }
+                )
 
     # -----------------------------------------------------
     # Add GeoNames places
     # -----------------------------------------------------
 
-    for place in data.get(
-        "geonames",
-        []
-    ):
-        locations.append({
-            "id":
-                place.get("geonameId"),
-
-            "name":
-                place.get("name"),
-
-            "asciiName":
-                place.get("asciiName"),
-
-            "countryName":
-                place.get("countryName"),
-
-            "countryCode":
-                place.get("countryCode"),
-
-            "state":
-                place.get("adminName1"),
-
-            "district":
-                place.get("adminName2"),
-
-            "subdistrict":
-                place.get("adminName3"),
-
-            "adminCode1":
-                place.get("adminCode1"),
-
-            "adminCode2":
-                place.get("adminCode2"),
-
-            "adminCode3":
-                place.get("adminCode3"),
-
-            "featureClass":
-                place.get("fcl"),
-
-            "featureCode":
-                place.get("fcode"),
-
-            "latitude":
-                place.get("lat"),
-
-            "longitude":
-                place.get("lng"),
-        })
+    for place in data.get("geonames", []):
+        locations.append(
+            {
+                "id": place.get("geonameId"),
+                "name": place.get("name"),
+                "asciiName": place.get("asciiName"),
+                "countryName": place.get("countryName"),
+                "countryCode": place.get("countryCode"),
+                "state": place.get("adminName1"),
+                "district": place.get("adminName2"),
+                "subdistrict": place.get("adminName3"),
+                "adminCode1": place.get("adminCode1"),
+                "adminCode2": place.get("adminCode2"),
+                "adminCode3": place.get("adminCode3"),
+                "featureClass": place.get("fcl"),
+                "featureCode": place.get("fcode"),
+                "latitude": place.get("lat"),
+                "longitude": place.get("lng"),
+            }
+        )
 
     # -----------------------------------------------------
     # Remove duplicate locations
@@ -367,13 +260,9 @@ def search_locations(
 
         if location_id is not None:
             if location_id not in unique_locations:
-                unique_locations[
-                    location_id
-                ] = location
+                unique_locations[location_id] = location
 
-    locations = list(
-        unique_locations.values()
-    )
+    locations = list(unique_locations.values())
 
     # -----------------------------------------------------
     # Countries first, then normal locations
@@ -381,14 +270,8 @@ def search_locations(
 
     locations.sort(
         key=lambda item: (
-            0
-            if item.get("featureCode") == "ADM0"
-            else 1,
-
-            (
-                item.get("name")
-                or ""
-            ).lower(),
+            0 if item.get("featureCode") == "ADM0" else 1,
+            (item.get("name") or "").lower(),
         )
     )
 

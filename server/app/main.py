@@ -1,27 +1,28 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-
-from app.models.trip import TripRequest
-from app.models.chatbot import ChatRequest
-
+from app.db.database import init_db
 from app.graph.travel_graph import travel_graph
-
-from app.services.chatbot_service import (
-    generate_chatbot_response
-)
-
+from app.models.chatbot import ChatRequest
+from app.models.trip import TripRequest
+from app.routers.auth import router as auth_router
+from app.routers.trips import router as trips_router
+from app.services.chatbot_service import generate_chatbot_response
 from app.services.location_service import (
-    get_countries,
     get_children,
+    get_countries,
     search_locations,
 )
-
+from app.services.places_service import get_attractions_for_destination
 from app.services.weather_service import (
     get_weather,
 )
-
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 
 # ============================================================
@@ -39,67 +40,60 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================
+# Routers
+# ============================================================
+
+app.include_router(auth_router)
+app.include_router(trips_router)
+
 
 # ============================================================
 # Home Route
 # ============================================================
 
+
 @app.get("/")
 def home():
-    return {
-        "message": "Welcome to Voyagent AI Backend 🚀"
-    }
+    return {"message": "Welcome to Voyagent AI Backend 🚀"}
 
 
 # ============================================================
 # Generate Trip Route
 # ============================================================
 
+
 @app.post("/generate-trip")
 def generate_trip(trip: TripRequest):
 
     try:
-        result = travel_graph.invoke({
-            "source_city": trip.sourceCity,
-            "destination": trip.destination,
-            "start_date": str(trip.startDate),
-            "end_date": str(trip.endDate),
-            "budget": trip.budget,
-            "travelers": trip.travelers,
-            "travel_type": trip.travelType,
-            "preferences": trip.preferences,
-
-            "destination_plan": "",
-            "budget_plan": "",
-            "accommodation_plan": "",
-            "itinerary": "",
-            "weather_info": "",
-        })
+        result = travel_graph.invoke(
+            {
+                "source_city": trip.sourceCity,
+                "destination": trip.destination,
+                "start_date": str(trip.startDate),
+                "end_date": str(trip.endDate),
+                "budget": trip.budget,
+                "travelers": trip.travelers,
+                "travel_type": trip.travelType,
+                "preferences": trip.preferences,
+                "destination_plan": "",
+                "budget_plan": "",
+                "accommodation_plan": "",
+                "itinerary": "",
+                "weather_info": "",
+            }
+        )
 
         return {
             "status": "success",
             "message": "AI itinerary generated successfully!",
             "trip": trip,
-            "weather_info": result.get(
-                "weather_info",
-                ""
-            ),
-            "budget_plan": result.get(
-                "budget_plan",
-                ""
-            ),
-            "destination_plan": result.get(
-                "destination_plan",
-                ""
-            ),
-            "accommodation_plan": result.get(
-                "accommodation_plan",
-                ""
-            ),
-            "itinerary": result.get(
-                "itinerary",
-                ""
-            ),
+            "weather_info": result.get("weather_info", ""),
+            "budget_plan": result.get("budget_plan", ""),
+            "destination_plan": result.get("destination_plan", ""),
+            "accommodation_plan": result.get("accommodation_plan", ""),
+            "itinerary": result.get("itinerary", ""),
         }
 
     except Exception as e:
@@ -107,16 +101,37 @@ def generate_trip(trip: TripRequest):
 
         raise HTTPException(
             status_code=503,
-            detail=(
-                "AI travel planning service is "
-                f"temporarily unavailable. {str(e)}"
-            ),
+            detail=(f"AI travel planning service is temporarily unavailable. {e!s}"),
+        )
+
+
+@app.get("/attractions")
+def get_destination_attractions(destination: str):
+    try:
+        attractions = get_attractions_for_destination(destination)
+
+        return {
+            "status": "success",
+            "destination": destination,
+            "attractions": attractions,
+        }
+
+    except Exception as error:
+        print(
+            "ATTRACTIONS ERROR:",
+            error,
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail=("Unable to load tourist attractions right now."),
         )
 
 
 # ============================================================
 # Live Weather Route
 # ============================================================
+
 
 @app.get("/weather")
 def weather(destination: str):
@@ -128,9 +143,7 @@ def weather(destination: str):
                 detail="Destination is required.",
             )
 
-        weather_data = get_weather(
-            destination.strip()
-        )
+        weather_data = get_weather(destination.strip())
 
         return {
             "status": "success",
@@ -141,10 +154,7 @@ def weather(destination: str):
         raise
 
     except Exception as e:
-        print(
-            "WEATHER ROUTE ERROR:",
-            e
-        )
+        print("WEATHER ROUTE ERROR:", e)
 
         raise HTTPException(
             status_code=503,
@@ -156,10 +166,9 @@ def weather(destination: str):
 # AI Trip Assistant Route
 # ============================================================
 
+
 @app.post("/chat")
-def chat_with_trip_assistant(
-    request: ChatRequest
-):
+def chat_with_trip_assistant(request: ChatRequest):
 
     try:
         response = generate_chatbot_response(
@@ -182,16 +191,14 @@ def chat_with_trip_assistant(
 
         raise HTTPException(
             status_code=503,
-            detail=(
-                "AI trip assistant is temporarily "
-                f"unavailable. {str(e)}"
-            ),
+            detail=(f"AI trip assistant is temporarily unavailable. {e!s}"),
         )
 
 
 # ============================================================
 # Location Routes
 # ============================================================
+
 
 @app.get("/locations/countries")
 def locations_countries():
@@ -203,10 +210,7 @@ def locations_countries():
         }
 
     except Exception as e:
-        print(
-            "LOCATION COUNTRIES ERROR:",
-            e
-        )
+        print("LOCATION COUNTRIES ERROR:", e)
 
         raise HTTPException(
             status_code=503,
@@ -214,26 +218,17 @@ def locations_countries():
         )
 
 
-@app.get(
-    "/locations/children/{geoname_id}"
-)
-def locations_children(
-    geoname_id: int
-):
+@app.get("/locations/children/{geoname_id}")
+def locations_children(geoname_id: int):
 
     try:
         return {
             "status": "success",
-            "locations": get_children(
-                geoname_id
-            ),
+            "locations": get_children(geoname_id),
         }
 
     except Exception as e:
-        print(
-            "LOCATION CHILDREN ERROR:",
-            e
-        )
+        print("LOCATION CHILDREN ERROR:", e)
 
         raise HTTPException(
             status_code=503,
@@ -269,10 +264,7 @@ def locations_search(
         }
 
     except Exception as e:
-        print(
-            "LOCATION SEARCH ERROR:",
-            e
-        )
+        print("LOCATION SEARCH ERROR:", e)
 
         raise HTTPException(
             status_code=503,

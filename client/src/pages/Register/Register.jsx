@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
 import Button from "../../components/ui/Button";
+import API_BASE_URL from "../../constants/api";
 
 function Register({
   isModal = false,
@@ -39,7 +40,7 @@ function Register({
   const [isLoading, setIsLoading] =
     useState(false);
 
-  function handleRegister(event) {
+  async function handleRegister(event) {
     event.preventDefault();
 
     setFullNameError("");
@@ -113,63 +114,49 @@ function Register({
       return;
     }
 
-    /*
-     * Get all locally registered users.
-     */
-    const users = JSON.parse(
-      localStorage.getItem("voyagent_users") ||
-        "{}"
-    );
-
-    /*
-     * Prevent duplicate accounts.
-     */
-    if (users[trimmedEmail]) {
-      setEmailError(
-        "An account with this email already exists."
-      );
-      return;
-    }
-
     setIsLoading(true);
 
-    /*
-     * Create the new account.
-     */
-    users[trimmedEmail] = {
-      name: trimmedName,
-      email: trimmedEmail,
-      password,
-    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          password,
+        }),
+      });
 
-    localStorage.setItem(
-      "voyagent_users",
-      JSON.stringify(users)
-    );
+      const data = await response.json();
 
-    /*
-     * Keep the current user information available
-     * for the rest of the application.
-     */
-    localStorage.setItem(
-      "userName",
-      trimmedName
-    );
+      if (!response.ok) {
+        if (response.status === 409) {
+          setEmailError(data.detail);
+        } else if (response.status === 422 && Array.isArray(data.detail)) {
+          setRegisterError(data.detail[0]?.msg || "Please check your details.");
+        } else {
+          setRegisterError(
+            data.detail || "Unable to create account. Please try again."
+          );
+        }
+        setIsLoading(false);
+        return;
+      }
 
-    localStorage.setItem(
-      "userEmail",
-      trimmedEmail
-    );
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userName", data.user.name);
+      localStorage.setItem("userEmail", data.user.email);
+      localStorage.setItem("voyagent_token", data.access_token);
 
-    setTimeout(() => {
       setIsLoading(false);
 
-      if (switchToLogin) {
-        switchToLogin();
-      } else {
-        navigate("/login");
-      }
-    }, 1000);
+      navigate("/", { replace: true });
+    } catch (error) {
+      setRegisterError(
+        "Could not reach the server. Please make sure the backend is running."
+      );
+      setIsLoading(false);
+    }
   }
 
   return (

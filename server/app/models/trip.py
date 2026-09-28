@@ -2,7 +2,6 @@ from pydantic import BaseModel
 
 
 class TripRequest(BaseModel):
-
     sourceCity: str
 
     destination: str

@@ -1,4 +1,5 @@
 import json
+
 from app.services.groq_service import generate_ai_response
 
 
@@ -182,10 +183,7 @@ Do not use ```json.
 Do not add text before or after the JSON.
 """
 
-    response = generate_ai_response(
-        prompt,
-        max_completion_tokens=4000
-    )
+    response = generate_ai_response(prompt, max_completion_tokens=4000)
 
     try:
         parsed_response = json.loads(response)

@@ -5,7 +5,7 @@ function CTA({ openAuth }) {
   return (
     <section className="bg-slate-900 py-24">
       <Container>
-        <div className="rounded-[40px] bg-gradient-to-r from-cyan-600 to-blue-700 p-12 text-center shadow-2xl">
+        <div className="rounded-[40px] bg-gradient-to-r from-cyan-800 to-blue-700 p-12 text-center shadow-2xl">
           <h2 className="mb-6 text-4xl font-bold text-white md:text-5xl">
             Ready for Your Next Adventure?
           </h2>
@@ -18,7 +18,7 @@ function CTA({ openAuth }) {
 
           <Button
           onClick={openAuth}
-          className="rounded-xl bg-white px-8 py-3 font-semibold text-slate-900 hover:bg-gray-100"
+          className="rounded-xl px-8 py-3 font-semibold text-slate-900 group-hover:scale-110"
           >
           Start Planning
           </Button>

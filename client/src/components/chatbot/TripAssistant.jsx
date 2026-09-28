@@ -3,6 +3,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+function prepareChatContext(value, maxLength) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const text =
+    typeof value === "string"
+      ? value
+      : JSON.stringify(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return (
+    text.slice(0, maxLength) +
+    "\n\n[Context shortened to reduce AI request size.]"
+  );
+}
+
 function TripAssistant({
   trip,
   itinerary,
@@ -58,6 +78,42 @@ function TripAssistant({
     setLoading(true);
 
     try {
+      const chatTrip = {
+        sourceCity: trip.sourceCity,
+        destination: trip.destination,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        budget: trip.budget,
+        travelers: trip.travelers,
+        travelType: trip.travelType,
+        preferences: trip.preferences || [],
+      };
+
+      const chatItinerary = prepareChatContext(
+        itinerary,
+        6500
+      );
+
+      const chatWeather = prepareChatContext(
+        weatherInfo,
+        1600
+      );
+
+      const chatBudget = prepareChatContext(
+        budgetPlan,
+        1600
+      );
+
+      const chatDestination = prepareChatContext(
+        destinationPlan,
+        1600
+      );
+
+      const chatAccommodation = prepareChatContext(
+        accommodationPlan,
+        1600
+      );
+
       const response = await fetch(
         "http://127.0.0.1:8000/chat",
         {
@@ -67,12 +123,12 @@ function TripAssistant({
           },
           body: JSON.stringify({
             message: trimmedMessage,
-            trip,
-            itinerary,
-            weather_info: weatherInfo,
-            budget_plan: budgetPlan,
-            destination_plan: destinationPlan,
-            accommodation_plan: accommodationPlan,
+            trip: chatTrip,
+            itinerary: chatItinerary,
+            weather_info: chatWeather,
+            budget_plan: chatBudget,
+            destination_plan: chatDestination,
+            accommodation_plan: chatAccommodation,
           }),
         }
       );
@@ -82,7 +138,7 @@ function TripAssistant({
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "The AI assistant could not process your request."
+          "The AI assistant could not process your request."
         );
       }
 
@@ -328,11 +384,10 @@ function TripAssistant({
                 return (
                   <div
                     key={item.id}
-                    className={`flex ${
-                      isUser
+                    className={`flex ${isUser
                         ? "justify-end"
                         : "justify-start"
-                    }`}
+                      }`}
                   >
                     <div
                       className={`
@@ -342,10 +397,9 @@ function TripAssistant({
                         py-3
                         text-sm
                         leading-6
-                        ${
-                          isUser
-                            ? "rounded-br-md bg-gradient-to-r from-teal-500 to-blue-600 text-white"
-                            : item.error
+                        ${isUser
+                          ? "rounded-br-md bg-gradient-to-r from-teal-500 to-blue-600 text-white"
+                          : item.error
                             ? "rounded-bl-md border border-red-200 bg-red-50 text-red-600"
                             : "rounded-bl-md border border-slate-200 bg-white text-slate-700 shadow-sm"
                         }
@@ -406,6 +460,7 @@ function TripAssistant({
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="h-2 w-2 animate-bounce rounded-full bg-teal-500" />
+
                       <span
                         className="h-2 w-2 animate-bounce rounded-full bg-teal-500"
                         style={{
@@ -413,6 +468,7 @@ function TripAssistant({
                             "120ms",
                         }}
                       />
+
                       <span
                         className="h-2 w-2 animate-bounce rounded-full bg-teal-500"
                         style={{

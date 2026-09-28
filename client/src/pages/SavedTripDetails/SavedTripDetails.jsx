@@ -4,14 +4,15 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import WeatherCard from "../../components/cards/WeatherCard";
-
-const API_BASE = "http://127.0.0.1:8000";
+import API_BASE_URL from "../../constants/api";
 
 function SavedTripDetails() {
   const { tripId } = useParams();
   const navigate = useNavigate();
 
   const [trip, setTrip] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
@@ -19,33 +20,52 @@ function SavedTripDetails() {
   const [weatherFetchedAt, setWeatherFetchedAt] =
     useState(null);
 
-  const userEmail =
-    localStorage.getItem("userEmail") || "";
-
   // ============================================================
   // Load Saved Trip
   // ============================================================
 
   useEffect(() => {
-    if (!userEmail) {
-      navigate("/login", { replace: true });
-      return;
+    async function fetchTrip() {
+      const token = localStorage.getItem("voyagent_token");
+
+      if (!token) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/trips/${tripId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.status === 404) {
+          setTrip(null);
+          setIsLoading(false);
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error("Unable to load this trip.");
+        }
+
+        const data = await response.json();
+        setTrip(data);
+      } catch (error) {
+        setLoadError(
+          error.message || "Unable to load this trip."
+        );
+      } finally {
+        setIsLoading(false);
+      }
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
-
-    const savedTrips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
-
-    const selectedTrip = savedTrips.find(
-      (savedTrip) =>
-        String(savedTrip.id) === String(tripId)
-    );
-
-    setTrip(selectedTrip || null);
-  }, [tripId, userEmail, navigate]);
+    fetchTrip();
+  }, [tripId, navigate]);
 
   // ============================================================
   // Fetch Live Weather
@@ -61,7 +81,7 @@ function SavedTripDetails() {
 
     try {
       const response = await fetch(
-        `${API_BASE}/weather?destination=${encodeURIComponent(
+        `${API_BASE_URL}/weather?destination=${encodeURIComponent(
           destination.trim()
         )}`
       );
@@ -180,31 +200,54 @@ function SavedTripDetails() {
   // Delete Trip
   // ============================================================
 
-  function handleDeleteTrip() {
-    if (!trip || !userEmail) return;
+  async function handleDeleteTrip() {
+    if (!trip) return;
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    const token = localStorage.getItem("voyagent_token");
 
-    const savedTrips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-    const updatedTrips =
-      savedTrips.filter(
-        (savedTrip) =>
-          savedTrip.id !== trip.id
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/trips/${trip.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(updatedTrips)
-    );
+      if (!response.ok && response.status !== 204) {
+        throw new Error("Unable to delete this trip.");
+      }
 
-    navigate("/saved-trips", {
-      replace: true,
-    });
+      navigate("/saved-trips", {
+        replace: true,
+      });
+    } catch (error) {
+      setLoadError(
+        error.message || "Unable to delete this trip."
+      );
+    }
   }
+  // ============================================================
+  // Loading
+  // ============================================================
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">
+          Loading your trip...
+        </p>
+      </main>
+    );
+  }
+
 
   // ============================================================
   // Trip Not Found
@@ -233,8 +276,8 @@ function SavedTripDetails() {
             </h1>
 
             <p className="mx-auto mt-3 max-w-md text-slate-500">
-              This saved trip may have been
-              deleted or is no longer available.
+              {loadError ||
+                "This saved trip may have been deleted or is no longer available."}
             </p>
 
             <Link

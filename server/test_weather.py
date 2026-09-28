@@ -1,6 +1,5 @@
 from app.services.weather_service import get_weather
 
-
 try:
     weather = get_weather("Pune")
 

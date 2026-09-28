@@ -1,42 +1,75 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+import API_BASE_URL from "../../constants/api";
+
 function SavedTrips() {
   const [savedTrips, setSavedTrips] = useState([]);
-
-  const userEmail =
-    localStorage.getItem("userEmail") || "";
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    if (!userEmail) {
-      setSavedTrips([]);
+    async function fetchTrips() {
+      const token = localStorage.getItem("voyagent_token");
+
+      if (!token) {
+        setSavedTrips([]);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/trips`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to load your saved trips.");
+        }
+
+        const data = await response.json();
+        setSavedTrips(data);
+      } catch (error) {
+        setLoadError(
+          error.message || "Unable to load your saved trips."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchTrips();
+  }, []);
+
+  async function handleDeleteTrip(tripId) {
+    const token = localStorage.getItem("voyagent_token");
+
+    if (!token) {
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    const trips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+      if (!response.ok && response.status !== 204) {
+        throw new Error("Unable to delete this trip.");
+      }
 
-    setSavedTrips(trips);
-  }, [userEmail]);
-
-  function handleDeleteTrip(tripId) {
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
-
-    const updatedTrips = savedTrips.filter(
-      (trip) => trip.id !== tripId
-    );
-
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(updatedTrips)
-    );
-
-    setSavedTrips(updatedTrips);
+      setSavedTrips((previous) =>
+        previous.filter((trip) => trip.id !== tripId)
+      );
+    } catch (error) {
+      setLoadError(
+        error.message || "Unable to delete this trip."
+      );
+    }
   }
 
   function formatDate(date) {
@@ -67,6 +100,16 @@ function SavedTrips() {
     return `${difference} ${
       difference === 1 ? "Day" : "Days"
     }`;
+  }
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">
+          Loading your saved trips...
+        </p>
+      </main>
+    );
   }
 
   return (
@@ -114,6 +157,13 @@ function SavedTrips() {
           </Link>
 
         </div>
+
+        {/* Load Error */}
+        {loadError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {loadError}
+          </div>
+        )}
 
         {/* Trip count */}
         {savedTrips.length > 0 && (
