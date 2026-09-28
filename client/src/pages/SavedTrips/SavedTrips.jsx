@@ -1,42 +1,87 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-function SavedTrips() {
-  const [savedTrips, setSavedTrips] = useState([]);
+import { useAuth } from "../../context/AuthContext";
+import CONFIG from "../../constants/config";
 
-  const userEmail =
-    localStorage.getItem("userEmail") || "";
+function SavedTrips() {
+  const { token } = useAuth();
+
+  const [savedTrips, setSavedTrips] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!userEmail) {
+    if (!token) {
       setSavedTrips([]);
+      setIsLoading(false);
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    async function loadTrips() {
+      setIsLoading(true);
+      setError("");
 
-    const trips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+      try {
+        const response = await fetch(
+          `${CONFIG.apiBaseUrl}/trips`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-    setSavedTrips(trips);
-  }, [userEmail]);
+        if (!response.ok) {
+          throw new Error(
+            "Unable to load your saved trips."
+          );
+        }
 
-  function handleDeleteTrip(tripId) {
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+        const data = await response.json();
 
-    const updatedTrips = savedTrips.filter(
-      (trip) => trip.id !== tripId
-    );
+        setSavedTrips(data);
+      } catch (err) {
+        setError(
+          err.message ||
+          "Unable to load your saved trips."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
 
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(updatedTrips)
-    );
+    loadTrips();
+  }, [token]);
 
-    setSavedTrips(updatedTrips);
+  async function handleDeleteTrip(tripId) {
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${CONFIG.apiBaseUrl}/trips/${tripId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to delete this trip.");
+      }
+
+      setSavedTrips((currentTrips) =>
+        currentTrips.filter(
+          (trip) => trip.id !== tripId
+        )
+      );
+    } catch (err) {
+      setError(
+        err.message || "Unable to delete this trip."
+      );
+    }
   }
 
   function formatDate(date) {
@@ -61,12 +106,11 @@ function SavedTrips() {
     const difference =
       Math.ceil(
         (end - start) /
-          (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24)
       ) + 1;
 
-    return `${difference} ${
-      difference === 1 ? "Day" : "Days"
-    }`;
+    return `${difference} ${difference === 1 ? "Day" : "Days"
+      }`;
   }
 
   return (
@@ -126,9 +170,18 @@ function SavedTrips() {
             </span>
           </div>
         )}
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            {error}
+          </div>
+        )}
 
         {/* Empty State */}
-        {savedTrips.length === 0 ? (
+        {isLoading ? (
+          <p className="text-center text-slate-500">
+            Loading your saved trips...
+          </p>
+        ) : savedTrips.length === 0 ? (
           <section className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
 
             <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-cyan-50 text-5xl">
@@ -321,8 +374,8 @@ function SavedTrips() {
                     </button>
 
                     <Link
-  to={`/saved-trips/${trip.id}`}
-  className="
+                      to={`/saved-trips/${trip.id}`}
+                      className="
     flex-1
     rounded-xl
     bg-slate-900
@@ -335,9 +388,9 @@ function SavedTrips() {
     transition
     hover:bg-slate-800
   "
->
-  View Trip →
-</Link>
+                    >
+                      View Trip →
+                    </Link>
 
                   </div>
 

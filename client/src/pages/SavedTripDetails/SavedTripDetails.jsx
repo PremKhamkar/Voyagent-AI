@@ -4,12 +4,15 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import WeatherCard from "../../components/cards/WeatherCard";
+import { useAuth } from "../../context/AuthContext";
+import CONFIG from "../../constants/config";
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = CONFIG.apiBaseUrl;
 
 function SavedTripDetails() {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   const [trip, setTrip] = useState(null);
 
@@ -19,34 +22,53 @@ function SavedTripDetails() {
   const [weatherFetchedAt, setWeatherFetchedAt] =
     useState(null);
 
-  const userEmail =
-    localStorage.getItem("userEmail") || "";
+  const [isLoadingTrip, setIsLoadingTrip] = useState(true);
 
   // ============================================================
   // Load Saved Trip
   // ============================================================
 
   useEffect(() => {
-    if (!userEmail) {
+    if (!token) {
       navigate("/login", { replace: true });
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    async function loadTrip() {
+      setIsLoadingTrip(true);
 
-    const savedTrips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+      try {
+        const response = await fetch(
+          `${CONFIG.apiBaseUrl}/trips`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-    const selectedTrip = savedTrips.find(
-      (savedTrip) =>
-        String(savedTrip.id) === String(tripId)
-    );
+        if (!response.ok) {
+          throw new Error("Unable to load trip.");
+        }
 
-    setTrip(selectedTrip || null);
-  }, [tripId, userEmail, navigate]);
+        const savedTrips = await response.json();
 
+        const selectedTrip = savedTrips.find(
+          (savedTrip) =>
+            String(savedTrip.id) === String(tripId)
+        );
+
+        setTrip(selectedTrip || null);
+      } catch (error) {
+        console.error("LOAD TRIP ERROR:", error);
+        setTrip(null);
+      } finally {
+        setIsLoadingTrip(false);
+      }
+    }
+
+    loadTrip();
+  }, [tripId, token, navigate]);
   // ============================================================
   // Fetch Live Weather
   // ============================================================
@@ -180,36 +202,48 @@ function SavedTripDetails() {
   // Delete Trip
   // ============================================================
 
-  function handleDeleteTrip() {
-    if (!trip || !userEmail) return;
+  async function handleDeleteTrip() {
+    if (!trip || !token) return;
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
-
-    const savedTrips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
-
-    const updatedTrips =
-      savedTrips.filter(
-        (savedTrip) =>
-          savedTrip.id !== trip.id
+    try {
+      const response = await fetch(
+        `${CONFIG.apiBaseUrl}/trips/${trip.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(updatedTrips)
-    );
+      if (!response.ok) {
+        throw new Error("Unable to delete this trip.");
+      }
 
-    navigate("/saved-trips", {
-      replace: true,
-    });
+      navigate("/saved-trips", {
+        replace: true,
+      });
+    } catch (error) {
+      console.error("DELETE TRIP ERROR:", error);
+      window.alert(
+        "Unable to delete this trip. Please try again."
+      );
+    }
   }
 
   // ============================================================
   // Trip Not Found
   // ============================================================
 
+  if (isLoadingTrip) {
+    return (
+      <main className="min-h-screen bg-slate-100 px-6 py-10">
+        <p className="text-center text-slate-500">
+          Loading trip...
+        </p>
+      </main>
+    );
+  }
   if (!trip) {
     return (
       <main className="min-h-screen bg-slate-100 px-6 py-10">

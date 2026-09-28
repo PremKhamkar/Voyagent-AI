@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import CONFIG from "../../constants/config";
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
 
   const [showSuccess, setShowSuccess] = useState(true);
   const [savedTrips, setSavedTrips] = useState([]);
@@ -26,20 +27,37 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!userEmail) {
+    if (!token) {
       setSavedTrips([]);
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    async function loadTrips() {
+      try {
+        const response = await fetch(
+          `${CONFIG.apiBaseUrl}/trips`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-    const trips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+        if (!response.ok) {
+          throw new Error("Unable to load trips.");
+        }
 
-    setSavedTrips(trips);
-  }, [userEmail]);
+        const data = await response.json();
+
+        setSavedTrips(data);
+      } catch (error) {
+        console.error("LOAD TRIPS ERROR:", error);
+        setSavedTrips([]);
+      }
+    }
+
+    loadTrips();
+  }, [token]);
 
   function handleLogout() {
     logout();
@@ -70,12 +88,11 @@ function Dashboard() {
     const difference =
       Math.ceil(
         (end - start) /
-          (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24)
       ) + 1;
 
-    return `${difference} ${
-      difference === 1 ? "Day" : "Days"
-    }`;
+    return `${difference} ${difference === 1 ? "Day" : "Days"
+      }`;
   }
 
   const recentTrips = savedTrips.slice(0, 3);
@@ -271,13 +288,13 @@ function Dashboard() {
             <p className="mt-3 text-3xl font-black text-slate-800">
               {savedTrips.length > 0
                 ? savedTrips.reduce(
-                    (total, trip) =>
-                      total +
-                      Number(
-                        trip.travelers || 0
-                      ),
-                    0
-                  )
+                  (total, trip) =>
+                    total +
+                    Number(
+                      trip.travelers || 0
+                    ),
+                  0
+                )
                 : 0}
             </p>
 
@@ -385,11 +402,10 @@ function Dashboard() {
 
             <div className="mt-5 font-semibold text-cyan-600">
               {savedTrips.length > 0
-                ? `View ${savedTrips.length} ${
-                    savedTrips.length === 1
-                      ? "Trip"
-                      : "Trips"
-                  } →`
+                ? `View ${savedTrips.length} ${savedTrips.length === 1
+                  ? "Trip"
+                  : "Trips"
+                } →`
                 : "Create Your First Trip →"}
             </div>
           </Link>

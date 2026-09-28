@@ -11,8 +11,11 @@ import GoogleMap from "../../components/maps/GoogleMap";
 import LocationPicker from "../../components/location/LocationPicker";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useAuth } from "../../context/AuthContext";
+import CONFIG from "../../constants/config";
 
 function Planner() {
+  const { token } = useAuth();
   const [trip, setTrip] = useState({
     sourceCity: "",
     destination: "",
@@ -246,15 +249,12 @@ function Planner() {
     }
   }
 
-  function handleSaveTrip() {
+  async function handleSaveTrip() {
     if (!generatedTrip || !itinerary) {
       return;
     }
 
-    const userEmail =
-      localStorage.getItem("userEmail");
-
-    if (!userEmail) {
+    if (!token) {
       setErrors({
         submit:
           "Unable to identify your account. Please log in again.",
@@ -263,74 +263,51 @@ function Planner() {
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    try {
+      const response = await fetch(
+        `${CONFIG.apiBaseUrl}/trips`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            sourceCity: generatedTrip.sourceCity,
+            destination: generatedTrip.destination,
+            startDate: generatedTrip.startDate,
+            endDate: generatedTrip.endDate,
+            budget: generatedTrip.budget,
+            travelers: generatedTrip.travelers,
+            travelType: generatedTrip.travelType,
+            preferences: generatedTrip.preferences || [],
+            itinerary,
+            weatherInfo: weatherInfo || null,
+            budgetPlan,
+            destinationPlan,
+            accommodationPlan,
+          }),
+        }
+      );
 
-    const existingTrips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
 
-    const alreadyExists = existingTrips.some(
-      (savedTrip) =>
-        savedTrip.destination ===
-        generatedTrip.destination &&
-        savedTrip.startDate ===
-        generatedTrip.startDate &&
-        savedTrip.endDate ===
-        generatedTrip.endDate &&
-        savedTrip.budget ===
-        generatedTrip.budget
-    );
+        throw new Error(
+          data.detail || "Unable to save trip."
+        );
+      }
 
-    if (alreadyExists) {
       setIsSaved(true);
-      return;
+    } catch (error) {
+      console.error("SAVE TRIP ERROR:", error);
+
+      setErrors({
+        submit:
+          error.message ||
+          "Unable to save trip. Please try again.",
+      });
     }
-
-    const savedTrip = {
-      id: Date.now(),
-
-      savedAt: new Date().toISOString(),
-
-      sourceCity: generatedTrip.sourceCity,
-
-      destination: generatedTrip.destination,
-
-      startDate: generatedTrip.startDate,
-
-      endDate: generatedTrip.endDate,
-
-      budget: generatedTrip.budget,
-
-      travelers: generatedTrip.travelers,
-
-      travelType: generatedTrip.travelType,
-
-      preferences:
-        generatedTrip.preferences || [],
-
-      itinerary,
-
-      weatherInfo,
-
-      budgetPlan,
-
-      destinationPlan,
-
-      accommodationPlan,
-    };
-
-    const updatedTrips = [
-      savedTrip,
-      ...existingTrips,
-    ];
-
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(updatedTrips)
-    );
-
-    setIsSaved(true);
   }
 
   // Location Picker handlers
