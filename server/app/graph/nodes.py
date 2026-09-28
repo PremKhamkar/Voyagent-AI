@@ -128,7 +128,7 @@ def destination_node(state: TravelState):
 
     destination_plan = generate_ai_response(
         prompt,
-        max_completion_tokens=1200
+        max_completion_tokens=2500
     )
 
     print(destination_plan)
@@ -220,7 +220,7 @@ Keep the total allocation within ₹{state['budget']}.
 
     budget_plan = generate_ai_response(
         prompt,
-        max_completion_tokens=1000
+        max_completion_tokens=2000
     )
 
     return {
@@ -287,7 +287,7 @@ Do not create the complete itinerary.
 
     accommodation_plan = generate_ai_response(
         prompt,
-        max_completion_tokens=1000
+        max_completion_tokens=2000
     )
 
     return {

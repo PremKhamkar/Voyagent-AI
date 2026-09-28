@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import WeatherCard from "../../components/cards/WeatherCard";
 import { useAuth } from "../../context/AuthContext";
 import CONFIG from "../../constants/config";
+import { cleanMarkdown } from "../../utils/markdown";
 
 const API_BASE = CONFIG.apiBaseUrl;
 
@@ -457,12 +458,12 @@ function SavedTripDetails() {
           </div>
 
           {trip.itinerary ? (
-            <div className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-li:text-slate-600">
+            <div className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-td:text-slate-800 prose-th:text-slate-900 prose-strong:text-slate-900">
 
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
               >
-                {trip.itinerary}
+                {cleanMarkdown(trip.itinerary)}
               </ReactMarkdown>
 
             </div>
@@ -971,7 +972,7 @@ function SavedTripDetails() {
             INFORMATION GRID
         ====================================================== */}
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="mt-6 grid gap-6 *:min-w-0 [&_.prose]:overflow-x-auto">
 
           {/* Budget */}
 
@@ -998,12 +999,12 @@ function SavedTripDetails() {
             </div>
 
             {trip.budgetPlan ? (
-              <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-li:text-slate-600">
+              <div className="prose prose-slate max-w-none prose-p:text-slate-800 prose-li:text-slate-800 prose-td:text-slate-800 prose-th:text-slate-900 prose-strong:text-slate-900">
 
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                 >
-                  {trip.budgetPlan}
+                  {cleanMarkdown(trip.budgetPlan)}
                 </ReactMarkdown>
 
               </div>
@@ -1040,12 +1041,12 @@ function SavedTripDetails() {
             </div>
 
             {trip.destinationPlan ? (
-              <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-li:text-slate-600">
+              <div className="prose prose-slate max-w-none prose-p:text-slate-800 prose-li:text-slate-800 prose-td:text-slate-800 prose-th:text-slate-900 prose-strong:text-slate-900">
 
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                 >
-                  {trip.destinationPlan}
+                  {cleanMarkdown(trip.destinationPlan)}
                 </ReactMarkdown>
 
               </div>
@@ -1083,12 +1084,12 @@ function SavedTripDetails() {
             </div>
 
             {trip.accommodationPlan ? (
-              <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-li:text-slate-600">
+              <div className="prose prose-slate max-w-none prose-p:text-slate-800 prose-li:text-slate-800 prose-td:text-slate-800 prose-th:text-slate-900 prose-strong:text-slate-900">
 
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                 >
-                  {trip.accommodationPlan}
+                  {cleanMarkdown(trip.accommodationPlan)}
                 </ReactMarkdown>
 
               </div>

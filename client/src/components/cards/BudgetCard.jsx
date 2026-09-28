@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { cleanMarkdown } from "../../utils/markdown";
 
 function BudgetCard({ content }) {
   const hasContent =
@@ -374,7 +375,7 @@ function BudgetCard({ content }) {
                   ),
 
                   /* -----------------------------------------
-                     HORIZONTAL RULE
+                    HORIZONTAL RULE
                   ------------------------------------------ */
 
                   hr: () => (
@@ -383,7 +384,7 @@ function BudgetCard({ content }) {
 
                 }}
               >
-                {content}
+                {cleanMarkdown(content)}
               </ReactMarkdown>
 
             </div>

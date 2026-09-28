@@ -13,6 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../../context/AuthContext";
 import CONFIG from "../../constants/config";
+import { cleanMarkdown } from "../../utils/markdown";
 
 function Planner() {
   const { token } = useAuth();
@@ -1148,7 +1149,7 @@ function Planner() {
                     ),
                   }}
                 >
-                  {itinerary}
+                  {cleanMarkdown(itinerary)}
                 </ReactMarkdown>
 
               </div>
