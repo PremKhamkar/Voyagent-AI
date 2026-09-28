@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 
-function AgentFlow() {
+
+function AgentFlow({ completedAgents = 0 }) {
   const agents = [
     { id: 1, name: "Destination", icon: "⌖" },
     { id: 2, name: "Weather", icon: "☁" },
@@ -9,21 +9,9 @@ function AgentFlow() {
     { id: 5, name: "Itinerary", icon: "▤" },
   ];
 
-  const [activeAgent, setActiveAgent] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveAgent((previous) => {
-        if (previous < agents.length - 1) {
-          return previous + 1;
-        }
-
-        return previous;
-      });
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [agents.length]);
+  // Driven by the backend: how many agents have finished so far.
+  // The agent at this index is the one currently working.
+  const activeAgent = completedAgents;
 
   const logs = [
     "Destination Agent — Understanding your destination and travel preferences...",

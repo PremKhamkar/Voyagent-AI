@@ -1,4 +1,7 @@
+import json
+
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models.trip import TripRequest
@@ -122,6 +125,90 @@ def generate_trip(trip: TripRequest):
         )
 
 
+# ============================================================
+# Generate Trip Route (streaming progress)
+#
+# Same pipeline as /generate-trip, but reports each agent
+# finishing as it happens, then sends the final result.
+# Each line of the response is one JSON message.
+# ============================================================
+
+@app.post("/generate-trip-stream")
+def generate_trip_stream(trip: TripRequest):
+
+    initial_state = {
+        "source_city": trip.sourceCity,
+        "destination": trip.destination,
+        "start_date": str(trip.startDate),
+        "end_date": str(trip.endDate),
+        "budget": trip.budget,
+        "travelers": trip.travelers,
+        "travel_type": trip.travelType,
+        "preferences": trip.preferences,
+
+        "destination_plan": "",
+        "budget_plan": "",
+        "accommodation_plan": "",
+        "itinerary": "",
+        "weather_info": "",
+    }
+
+    def send(message: dict) -> str:
+        return json.dumps(message, default=str) + "\n"
+
+    def event_stream():
+        state = dict(initial_state)
+        completed = 0
+
+        try:
+            for chunk in travel_graph.stream(
+                initial_state,
+                stream_mode="updates",
+            ):
+                for node_name, update in chunk.items():
+                    state.update(update or {})
+                    completed += 1
+
+                    yield send({
+                        "type": "progress",
+                        "agent": node_name,
+                        "completed": completed,
+                    })
+
+            yield send({
+                "type": "result",
+                "data": {
+                    "status": "success",
+                    "message": "AI itinerary generated successfully!",
+                    "trip": trip.model_dump(),
+                    "weather_info": state.get("weather_info", ""),
+                    "budget_plan": state.get("budget_plan", ""),
+                    "destination_plan": state.get(
+                        "destination_plan", ""
+                    ),
+                    "accommodation_plan": state.get(
+                        "accommodation_plan", ""
+                    ),
+                    "itinerary": state.get("itinerary", ""),
+                },
+            })
+
+        except Exception as e:
+            print("ERROR:", e)
+
+            yield send({
+                "type": "error",
+                "detail": (
+                    "AI travel planning service is "
+                    f"temporarily unavailable. {str(e)}"
+                ),
+            })
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+    )
+    
 # ============================================================
 # Live Weather Route
 # ============================================================

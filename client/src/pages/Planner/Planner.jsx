@@ -29,6 +29,7 @@ function Planner() {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [completedAgents, setCompletedAgents] = useState(0);
 
   const [generatedTrip, setGeneratedTrip] = useState(null);
   const [itinerary, setItinerary] = useState(null);
@@ -193,6 +194,7 @@ function Planner() {
     }
 
     setLoading(true);
+    setCompletedAgents(0);
 
     setGeneratedTrip(null);
     setItinerary(null);
@@ -207,7 +209,7 @@ function Planner() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/generate-trip",
+        `${CONFIG.apiBaseUrl}/generate-trip-stream`,
         {
           method: "POST",
           headers: {
@@ -217,12 +219,65 @@ function Planner() {
         }
       );
 
-      const data = await response.json();
+      if (!response.ok || !response.body) {
+        let detail = "Failed to generate your trip.";
 
-      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+        } catch {
+          // keep the default message
+        }
+
+        throw new Error(detail);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+      let data = null;
+
+      const handleMessage = (line) => {
+        if (!line.trim()) {
+          return;
+        }
+
+        const message = JSON.parse(line);
+
+        if (message.type === "progress") {
+          setCompletedAgents(message.completed);
+        } else if (message.type === "result") {
+          data = message.data;
+        } else if (message.type === "error") {
+          throw new Error(
+            message.detail ||
+            "Failed to generate your trip."
+          );
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        lines.forEach(handleMessage);
+      }
+
+      buffer += decoder.decode();
+      handleMessage(buffer);
+
+      if (!data) {
         throw new Error(
-          data.detail ||
-          "Failed to generate your trip."
+          "Trip generation ended unexpectedly. Please try again."
         );
       }
 
@@ -787,7 +842,7 @@ function Planner() {
               {/* Agent Flow */}
               {loading && (
                 <div className="pt-2">
-                  <AgentFlow />
+                  <AgentFlow completedAgents={completedAgents} />
                 </div>
               )}
 
