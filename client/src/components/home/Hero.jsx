@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import Container from "../ui/Container";
 import { useEffect, useState } from "react";
-
+import { useAuth } from "../../context/AuthContext";
 function Hero() {
+    const { isLoggedIn } = useAuth();
   const images = [
     "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1600",
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600",
@@ -65,7 +66,7 @@ function Hero() {
                 {/* Start Planning */}
 
                 <Link
-                  to="/register"
+                  to={isLoggedIn ? "/planner" : "/register"}
                   className="
                     inline-flex
                     h-14
