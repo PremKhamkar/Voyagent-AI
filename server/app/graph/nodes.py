@@ -1,8 +1,7 @@
-from app.services.weather_service import get_weather
 from app.graph.state import TravelState
 from app.services.groq_service import generate_ai_response
-from app.services.places_service import get_coordinates, get_attractions
-
+from app.services.places_service import get_attractions, get_coordinates
+from app.services.weather_service import get_weather
 
 # ============================================================
 # Weather Formatting Helper
@@ -439,7 +438,7 @@ OUTPUT RULES:
 """
 
     itinerary = generate_ai_response(
-        prompt, max_completion_tokens=3500, model="llama-3.3-70b-versatile"
+        prompt, max_completion_tokens=3500, model="openai/gpt-oss-120b"
     )
 
     print("\n========== ITINERARY ==========\n")
