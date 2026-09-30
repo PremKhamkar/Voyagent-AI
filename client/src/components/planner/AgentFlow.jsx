@@ -29,7 +29,12 @@ function StatusIcon({ status }) {
   );
 }
 
-function AgentFlow({ attractionsLoading = false, attractionsError = "" }) {
+function AgentFlow({
+  attractionsLoading = false,
+  attractionsError = "",
+  restaurantsLoading = false,
+  restaurantsError = "",
+}) {
   const [elapsed, setElapsed] = useState(0);
 
   // A real timer: counts seconds since generation started.
@@ -55,6 +60,21 @@ function AgentFlow({ attractionsLoading = false, attractionsError = "" }) {
     done: "Verified places are ready",
     failed: "Not available - AI suggestions will be used instead",
   }[attractionsStatus];
+
+  // Real status: this mirrors the actual /restaurants request.
+  let restaurantsStatus = "done";
+
+  if (restaurantsLoading) {
+    restaurantsStatus = "loading";
+  } else if (restaurantsError) {
+    restaurantsStatus = "failed";
+  }
+
+  const restaurantsDetail = {
+    loading: "Looking up real restaurants and cafés",
+    done: "Verified restaurant listings are ready",
+    failed: "Not available right now",
+  }[restaurantsStatus];
 
   return (
     <div
@@ -106,6 +126,17 @@ function AgentFlow({ attractionsLoading = false, attractionsError = "" }) {
             </p>
 
             <p className="text-xs text-slate-500">{attractionsDetail}</p>
+          </div>
+        </li>
+        <li className="flex items-start gap-3">
+          <StatusIcon status={restaurantsStatus} />
+
+          <div>
+            <p className="text-sm font-semibold text-slate-700">
+              Finding restaurants and cafés
+            </p>
+
+            <p className="text-xs text-slate-500">{restaurantsDetail}</p>
           </div>
         </li>
       </ul>

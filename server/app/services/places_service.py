@@ -2,7 +2,7 @@ import math
 import os
 import re
 from time import monotonic
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urljoin, urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -26,6 +26,8 @@ WIKIPEDIA_USER_AGENT = os.getenv(
 )
 _PLACE_DETAILS_CACHE = {}
 _WIKIPEDIA_MEDIA_CACHE = {}
+_WEBSITE_IMAGE_CACHE = {}
+WEBSITE_IMAGE_CACHE_TTL = 3600
 
 
 def _require_geoapify_key():
@@ -166,13 +168,19 @@ def get_coordinates(destination):
     return coordinates[1], coordinates[0]
 
 
-def _request_place_features(latitude, longitude, categories, limit=50):
-    """Query one tourism category group around the destination."""
+def _request_place_features(
+    latitude,
+    longitude,
+    categories,
+    limit=50,
+    radius=SEARCH_RADIUS_METERS,
+):
+    """Query one category group around the destination."""
     response = requests.get(
         GEOAPIFY_PLACES_URL,
         params={
             "categories": categories,
-            "filter": (f"circle:{longitude},{latitude},{SEARCH_RADIUS_METERS}"),
+            "filter": (f"circle:{longitude},{latitude},{radius}"),
             "bias": f"proximity:{longitude},{latitude}",
             "limit": limit,
             "lang": "en",
@@ -232,7 +240,12 @@ def _get_place_features(latitude, longitude, limit=50):
         for feature in features:
             properties = feature.get("properties", {})
             place_id = properties.get("place_id")
-            name = _get_display_name(properties)
+            name = _clean_text(
+            properties.get("name")
+            or properties.get("name_international", {}).get("en")
+            )
+            if not name:
+                continue
             signature = _normalise_text(name)
 
             if place_id and place_id in seen_ids:
@@ -532,7 +545,7 @@ def _get_place_details(place_id):
         )
         response.raise_for_status()
     except requests.RequestException as error:
-        print("Geoapify Place Details error:", error)
+        print("Geoapify Place Details error:", _redact(error))
         return {}
 
     features = response.json().get("features", [])
@@ -1005,3 +1018,538 @@ def get_attractions_for_destination(destination):
         destination,
         limit=8,
     )
+
+# ============================================================
+# Restaurants
+#
+# Destination-level restaurant/cafe search built on the same
+# Geoapify helpers as attractions. Filtering and ranking are
+# restaurant-specific and never invent data: every returned
+# field comes from Geoapify (or its OSM datasource.raw tags).
+# ============================================================
+
+RESTAURANT_CATEGORY_GROUPS = [
+    "catering.restaurant",
+    "catering.cafe",
+]
+# Tighter than SEARCH_RADIUS_METERS: food is a city-level question.
+RESTAURANT_SEARCH_RADIUS_METERS = 10000
+RESTAURANT_RESULT_LIMIT = 8
+RESTAURANT_PER_GROUP_LIMIT = 40
+
+_DIET_TAGS = ("vegetarian", "vegan", "halal")
+_NON_CUISINE_LEAVES = {
+    "restaurant",
+    "cafe",
+    "fast_food",
+    "pub",
+    "bar",
+    "biergarten",
+    "food_court",
+    "ice_cream",
+    "regional",
+}
+
+
+def _redact(value):
+    """Never let the API key reach logs via a request URL in an error."""
+    text = str(value)
+    if GEOAPIFY_API_KEY:
+        text = text.replace(GEOAPIFY_API_KEY, "***")
+    return text
+
+
+def _as_dict(value):
+    return value if isinstance(value, dict) else {}
+
+
+def _clean_text(*values):
+    """First non-empty string among the values, stripped."""
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _clean_url(*values):
+    """First usable http(s) URL; rejects anything else (e.g. javascript:)."""
+    for value in values:
+        text = _clean_text(value)
+        if not text:
+            continue
+        if text.lower().startswith("www."):
+            text = "https://" + text
+        if text.lower().startswith(("http://", "https://")):
+            return text
+    return None
+
+def _extract_website_image(website):
+    """Extract a restaurant image from its own official website only."""
+
+    website = _clean_url(website)
+
+    if not website:
+        return None
+
+    now = monotonic()
+
+    cached = _WEBSITE_IMAGE_CACHE.get(website)
+
+    if cached and (now - cached["timestamp"]) < WEBSITE_IMAGE_CACHE_TTL:
+        return cached["image"]
+
+    try:
+        response = requests.get(
+            website,
+            timeout=8,
+            headers={
+                "User-Agent": "Mozilla/5.0 Voyagent-AI"
+            },
+        )
+
+        response.raise_for_status()
+
+    except requests.RequestException:
+        _WEBSITE_IMAGE_CACHE[website] = {
+            "timestamp": now,
+            "image": None,
+        }
+        return None
+
+    html = response.text
+
+    candidates = re.findall(
+        r'(?:src|data-src|data-lazy-src|srcset)=["\']([^"\']+)["\']',
+        html,
+        re.IGNORECASE,
+    )
+
+
+    preferred = []
+
+    ignored = (
+        "logo",
+        "favicon",
+        "whatsapp",
+        "facebook",
+        "instagram",
+        "twitter",
+        "icon",
+        "loader",
+        "loading",
+        "placeholder",
+        "banner",
+        "season",
+        "offer",
+    )
+    preferred_words = (
+    "dish",
+    "food",
+    "menu",
+    "meal",
+    "gallery",
+    "restaurant",
+    "ambience",
+    "interior",
+)
+
+    for candidate in candidates:
+        image = urljoin(response.url, candidate)
+
+        lower = image.lower()
+
+        if not re.search(
+            r"\.(jpg|jpeg|png|webp)(\?|$)",
+            lower,
+        ):
+            continue
+
+        if any(word in lower for word in ignored):
+            continue
+
+        website_domain = urlparse(website).netloc
+        image_domain = urlparse(image).netloc
+
+        if website_domain not in image_domain:
+            continue
+
+        priority = 0
+
+        if any(word in lower for word in preferred_words):
+            priority += 10
+
+        preferred.append((priority, image))
+
+    preferred.sort(
+    key=lambda item: item[0],
+    reverse=True,
+)
+
+    result = preferred[0][1] if preferred else None
+
+    _WEBSITE_IMAGE_CACHE[website] = {
+        "timestamp": now,
+        "image": result,
+    }
+
+    return result
+
+def _clean_image_url(*values):
+    """Direct-loadable image URL, or None when Geoapify returned none.
+
+    wiki_and_media.image can be a Wikimedia Commons *page* URL
+    (.../wiki/File:Name.jpg), which an <img> cannot render. Exactly that
+    pattern is rewritten to the Commons Special:FilePath redirect for the
+    same file; every other URL is returned unchanged.
+    """
+    url = _clean_url(*values)
+    if not url:
+        return None
+
+    match = re.match(
+        r"^https?://commons\.wikimedia\.org/wiki/File:([^?#]+)$",
+        url,
+        re.IGNORECASE,
+    )
+    if match:
+        return (
+            "https://commons.wikimedia.org/wiki/Special:FilePath/"
+            f"{match.group(1)}?width=600"
+        )
+
+    return url
+
+
+def _extract_coordinates(feature):
+    """(latitude, longitude) as floats, or None when unusable."""
+    properties = _as_dict(feature.get("properties"))
+    coordinates = _as_dict(feature.get("geometry")).get("coordinates")
+
+    try:
+        if isinstance(coordinates, (list, tuple)) and len(coordinates) >= 2:
+            longitude, latitude = float(coordinates[0]), float(coordinates[1])
+        else:
+            latitude = float(properties["lat"])
+            longitude = float(properties["lon"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    if not (
+        math.isfinite(latitude)
+        and math.isfinite(longitude)
+        and -90 <= latitude <= 90
+        and -180 <= longitude <= 180
+    ):
+        return None
+
+    return latitude, longitude
+
+
+def _restaurant_category(categories):
+    """UI label taken from the returned Geoapify categories."""
+    categories = [str(c) for c in (categories or [])]
+
+    if any(c.startswith("catering.cafe") for c in categories):
+        return "Cafe"
+    if any(c.startswith("catering.restaurant") for c in categories):
+        return "Restaurant"
+    return None
+
+
+def _parse_cuisines(catering, raw, categories):
+    """Cuisine labels explicitly present in the returned data."""
+    values = []
+
+    for source in (catering.get("cuisine"), raw.get("cuisine")):
+        if isinstance(source, str):
+            values.extend(re.split(r"[;,]", source))
+        elif isinstance(source, list):
+            for item in source:
+                if isinstance(item, str):
+                    values.extend(re.split(r"[;,]", item))
+
+    # e.g. "catering.restaurant.pizza" -> "pizza"
+    for category in categories or []:
+        parts = str(category).split(".")
+        if len(parts) >= 3 and parts[0] == "catering" and parts[1] == "restaurant":
+            values.append(parts[2])
+
+    cuisines = []
+    for value in values:
+        cleaned = value.strip().lower().replace("_", " ")
+        if (
+            not cleaned
+            or cleaned.replace(" ", "_") in _NON_CUISINE_LEAVES
+            or cleaned in _DIET_TAGS
+            or cleaned in {c.lower() for c in cuisines}
+        ):
+            continue
+        cuisines.append(cleaned.title())
+
+    return cuisines
+
+
+def _parse_dietary_tags(catering, raw, categories):
+    """Dietary tags only when explicitly present in returned data."""
+    tags = []
+    diet = catering.get("diet")
+    diet = diet if isinstance(diet, dict) else {}
+
+    for tag in _DIET_TAGS:
+        value = diet.get(tag)
+        explicit = value is True or (
+            isinstance(value, str) and value.strip().lower() in {"yes", "only"}
+        )
+
+        raw_value = raw.get(f"diet:{tag}")
+        explicit = explicit or (
+            isinstance(raw_value, str) and raw_value.strip().lower() in {"yes", "only"}
+        )
+
+        explicit = explicit or any(
+            str(category).lower().split(".")[-1] == tag
+            for category in (categories or [])
+        )
+
+        if explicit:
+            tags.append(tag)
+
+    return tags
+
+
+def _extract_restaurant_fields(properties):
+    """Pull the optional restaurant fields out of one Geoapify properties
+    dict (works for both Places results and Place Details). Only fields
+    that are really present are returned."""
+    properties = _as_dict(properties)
+    raw = _as_dict(_as_dict(properties.get("datasource")).get("raw"))
+    contact = _as_dict(properties.get("contact"))
+    catering = _as_dict(properties.get("catering"))
+    media = _as_dict(properties.get("wiki_and_media"))
+    categories = properties.get("categories") or []
+
+    fields = {
+        "website": _clean_url(
+            properties.get("website"),
+            contact.get("website"),
+            raw.get("website"),
+            raw.get("contact:website"),
+        ),
+        "phone": _clean_text(
+            contact.get("phone"),
+            properties.get("phone"),
+            raw.get("phone"),
+            raw.get("contact:phone"),
+        ),
+        "opening_hours": _clean_text(
+            properties.get("opening_hours"),
+            raw.get("opening_hours"),
+        ),
+        "image_url": _clean_image_url(
+    properties.get("image"),
+    media.get("image"),
+) or _extract_website_image(
+    properties.get("website")
+),
+        "description": _clean_text(properties.get("description")),
+        "cuisine": _parse_cuisines(catering, raw, categories),
+        "dietary_tags": _parse_dietary_tags(catering, raw, categories),
+    }
+
+    return {key: value for key, value in fields.items() if value}
+
+
+def _restaurant_score(restaurant):
+    """Rank by how much verified information exists plus proximity."""
+    score = 0
+
+    for key, weight in (
+        ("opening_hours", 3),
+        ("website", 3),
+        ("phone", 2),
+        ("cuisine", 2),
+        ("image_url", 2),
+        ("description", 1),
+        ("formatted_address", 1),
+    ):
+        if restaurant.get(key):
+            score += weight
+
+    distance = restaurant.get("distance_km", 9999)
+    if distance <= 2:
+        score += 6
+    elif distance <= 5:
+        score += 4
+    elif distance <= 10:
+        score += 2
+
+    return score
+
+
+def _sort_restaurants(restaurants):
+    restaurants.sort(
+        key=lambda item: (
+            -_restaurant_score(item),
+            item.get("distance_km", 9999),
+        )
+    )
+
+
+def _get_restaurant_features(latitude, longitude):
+    """One Places request per category group so cafes cannot crowd out
+    restaurants. Raises only if every group failed."""
+    features = []
+    failures = 0
+
+    for categories in RESTAURANT_CATEGORY_GROUPS:
+        try:
+            features.extend(
+                _request_place_features(
+                    latitude,
+                    longitude,
+                    categories,
+                    limit=RESTAURANT_PER_GROUP_LIMIT,
+                    radius=RESTAURANT_SEARCH_RADIUS_METERS,
+                )
+            )
+        except requests.RequestException as error:
+            failures += 1
+            print(
+                f"Geoapify restaurant group failed ({categories}):",
+                _redact(error),
+            )
+
+    if failures == len(RESTAURANT_CATEGORY_GROUPS):
+        raise RuntimeError("Geoapify restaurant search failed.")
+
+    return features
+
+
+def get_restaurants(latitude, longitude, limit=RESTAURANT_RESULT_LIMIT):
+    """Ranked restaurants/cafes around a point, using only Geoapify data."""
+    features = _get_restaurant_features(latitude, longitude)
+
+    candidates = []
+    seen_ids = set()
+    seen_signatures = set()
+
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+
+        properties = _as_dict(feature.get("properties"))
+        name = _get_display_name(properties)
+        coordinates = _extract_coordinates(feature)
+
+        if not name or not re.search(r"[^\W_]", name) or not coordinates:
+            continue
+
+        place_id = properties.get("place_id")
+        place_latitude, place_longitude = coordinates
+        distance_km = _calculate_distance_km(
+            latitude,
+            longitude,
+            place_latitude,
+            place_longitude,
+        )
+
+        if distance_km > RESTAURANT_SEARCH_RADIUS_METERS / 1000:
+            continue
+
+        # Name alone would drop genuine branches of the same chain, so the
+        # name is combined with ~100 m rounded coordinates.
+        signature = (
+            _normalise_text(name),
+            round(place_latitude, 3),
+            round(place_longitude, 3),
+        )
+
+        if (place_id and place_id in seen_ids) or signature in seen_signatures:
+            continue
+
+        if place_id:
+            seen_ids.add(place_id)
+        seen_signatures.add(signature)
+
+        categories = properties.get("categories") or []
+        restaurant = {
+            "id": place_id,
+            "name": name.strip(),
+            "category": _restaurant_category(categories),
+            "categories": categories,
+            "latitude": place_latitude,
+            "longitude": place_longitude,
+            "distance_km": round(distance_km, 1),
+            "formatted_address": _clean_text(properties.get("formatted")),
+            "address": _clean_text(properties.get("address_line1")),
+            "city": _clean_text(properties.get("city")),
+            "country": _clean_text(properties.get("country")),
+        }
+        restaurant.update(_extract_restaurant_fields(properties))
+        candidates.append(restaurant)
+
+    _sort_restaurants(candidates)
+    top = candidates[:limit]
+
+    # Place Details only for the final shortlist (credit control); the
+    # existing in-memory cache in _get_place_details is reused.
+    for restaurant in top:
+        if not restaurant.get("id"):
+            continue
+
+        try:
+            details = _extract_restaurant_fields(_get_place_details(restaurant["id"]))
+        except Exception as error:
+            print(
+                f"Restaurant enrichment failed for {restaurant['name']}:",
+                _redact(error),
+            )
+            continue
+
+        for key, value in details.items():
+            restaurant.setdefault(key, value)
+
+    _sort_restaurants(top)
+
+    # Drop empty optional values so absent data stays absent. The internal
+    # `image_url` key is exposed to the API as `image`.
+    return [
+        {
+            ("image" if key == "image_url" else key): value
+            for key, value in restaurant.items()
+            if value not in (None, "", [])
+        }
+        for restaurant in top
+    ]
+
+
+def get_restaurants_for_destination(destination):
+    """Frontend-facing helper used by GET /restaurants."""
+    if not isinstance(destination, str) or not destination.strip():
+        return []
+
+    destination = destination.strip()
+
+    coordinates = get_coordinates(destination)
+    if coordinates:
+        latitude, longitude = coordinates
+        restaurants = get_restaurants(latitude, longitude)
+
+        if restaurants:
+            return restaurants
+
+    # Geoapify can misinterpret locality + city strings such as
+    # "Shivajinagar,Pune" during city-level geocoding. When the destination
+    # contains a comma, retry using the final component as the broader city.
+    parts = [part.strip() for part in destination.split(",") if part.strip()]
+    if len(parts) > 1:
+        fallback_destination = parts[-1]
+
+        if fallback_destination.lower() != destination.lower():
+            fallback_coordinates = get_coordinates(fallback_destination)
+
+            if fallback_coordinates:
+                latitude, longitude = fallback_coordinates
+                return get_restaurants(latitude, longitude)
+
+    return []

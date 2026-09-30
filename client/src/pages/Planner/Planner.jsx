@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import AgentFlow from "../../components/planner/AgentFlow";
@@ -6,6 +6,7 @@ import TripAssistant from "../../components/chatbot/TripAssistant";
 import WeatherCard from "../../components/cards/WeatherCard";
 import BudgetCard from "../../components/cards/BudgetCard";
 import AttractionCard from "../../components/cards/AttractionCard";
+import RestaurantCard from "../../components/cards/RestaurantCard";
 import AccommodationCard from "../../components/cards/AccommodationCard";
 import GoogleMap from "../../components/maps/GoogleMap";
 import LocationPicker from "../../components/location/LocationPicker";
@@ -41,6 +42,12 @@ function Planner() {
   const [attractions, setAttractions] = useState([]);
   const [attractionsLoading, setAttractionsLoading] = useState(false);
   const [attractionsError, setAttractionsError] = useState("");
+  const [restaurants, setRestaurants] = useState([]);
+  const [restaurantsLoading, setRestaurantsLoading] = useState(false);
+  const [restaurantsError, setRestaurantsError] = useState("");
+  // Identifies the latest restaurant request so a slow response from an
+  // earlier search can never overwrite the newer results.
+  const restaurantsRequestId = useRef(0);
 
   const [isSaved, setIsSaved] = useState(false);
 
@@ -162,6 +169,53 @@ function Planner() {
     }
   }
 
+  async function fetchRestaurants(destination) {
+    if (!destination?.trim()) {
+      return;
+    }
+
+    const requestId = ++restaurantsRequestId.current;
+
+    setRestaurantsLoading(true);
+    setRestaurantsError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/restaurants?destination=${encodeURIComponent(
+          destination.trim()
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Unable to load restaurants."
+        );
+      }
+
+      if (requestId !== restaurantsRequestId.current) {
+        return;
+      }
+
+      setRestaurants(data.restaurants || []);
+    } catch (error) {
+      if (requestId !== restaurantsRequestId.current) {
+        return;
+      }
+
+      console.error("Restaurants fetch error:", error);
+      setRestaurantsError(
+        error.message || "Unable to load restaurants."
+      );
+      setRestaurants([]);
+    } finally {
+      if (requestId === restaurantsRequestId.current) {
+        setRestaurantsLoading(false);
+      }
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -241,12 +295,15 @@ function Planner() {
     setAccommodationPlan("");
     setAttractions([]);
     setAttractionsError("");
+    setRestaurants([]);
+    setRestaurantsError("");
     setIsSaved(false);
 
     // Fired without awaiting: this only needs the destination name,
     // which is already known, so it runs alongside /generate-trip
     // instead of waiting for it to finish first.
     fetchAttractions(trip.destination);
+    fetchRestaurants(trip.destination);
 
     try {
       const response = await fetch(
@@ -830,6 +887,8 @@ function Planner() {
                   <AgentFlow
                     attractionsLoading={attractionsLoading}
                     attractionsError={attractionsError}
+                    restaurantsLoading={restaurantsLoading}
+                    restaurantsError={restaurantsError}
                   />
                 </div>
               )}
@@ -1149,7 +1208,9 @@ function Planner() {
             destinationPlan ||
             accommodationPlan ||
             attractionsLoading ||
-            attractions.length > 0) && (
+            attractions.length > 0 ||
+            restaurantsLoading ||
+            restaurants.length > 0) && (
               <div className="mt-8 grid w-full min-w-0 gap-6">
 
                 {/* Live Weather */}
@@ -1230,6 +1291,14 @@ function Planner() {
                     isLoading={attractionsLoading}
                     error={attractionsError}
                     content={destinationPlan}
+                  />
+                </div>
+
+                <div className="w-full min-w-0 max-w-full overflow-hidden">
+                  <RestaurantCard
+                    restaurants={restaurants}
+                    isLoading={restaurantsLoading}
+                    error={restaurantsError}
                   />
                 </div>
 

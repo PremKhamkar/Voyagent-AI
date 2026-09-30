@@ -10,7 +10,11 @@ from app.services.location_service import (
     get_countries,
     search_locations,
 )
-from app.services.places_service import get_attractions_for_destination
+from app.services.places_service import (
+    _redact,
+    get_attractions_for_destination,
+    get_restaurants_for_destination,
+)
 from app.services.weather_service import (
     get_weather,
 )
@@ -125,6 +129,40 @@ def get_destination_attractions(destination: str):
         raise HTTPException(
             status_code=503,
             detail=("Unable to load tourist attractions right now."),
+        )
+# ============================================================
+# Restaurants Route
+# ============================================================
+
+
+@app.get("/restaurants")
+def get_destination_restaurants(destination: str):
+    try:
+        if not destination.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Destination is required.",
+            )
+
+        restaurants = get_restaurants_for_destination(destination.strip())
+
+        return {
+            "status": "success",
+            "destination": destination.strip(),
+            "restaurants": restaurants,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        # Logged text is redacted so the Geoapify key in a request URL
+        # can never reach the logs or the response.
+        print("RESTAURANTS ERROR:", _redact(error))
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to load restaurants right now.",
         )
 
 
