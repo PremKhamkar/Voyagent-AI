@@ -1,4 +1,4 @@
-import math
+﻿import math
 import os
 import re
 from time import monotonic
@@ -1786,3 +1786,231 @@ def get_hotels_for_destination(destination):
                 return get_hotels(latitude, longitude)
 
     return []
+
+# ============================================================
+# Airports / flight route data (real Geoapify place data only;
+# no flight schedules, fares, availability or status)
+# ============================================================
+
+AIRPORT_CATEGORY = "airport"
+# Airports usually sit well outside the city centre.
+AIRPORT_SEARCH_RADIUS_METERS = 100000
+AIRPORT_PER_GROUP_LIMIT = 20
+AIRPORT_RESULT_LIMIT = 3
+
+_IATA_PATTERN = re.compile(r"^[A-Z]{3}$")
+_ICAO_PATTERN = re.compile(r"^[A-Z0-9]{4}$")
+_MILITARY_NAME_PATTERN = re.compile(
+    r"\b(air\s*force|air\s*base|military|army|naval)\b", re.IGNORECASE
+)
+
+
+def _extract_airport_codes(properties):
+    """(iata, icao) taken from Geoapify's datasource.raw (top-level keys as
+    a fallback). A value is returned only if it has a valid code format."""
+    properties = _as_dict(properties)
+    raw = _as_dict(_as_dict(properties.get("datasource")).get("raw"))
+
+    iata = _clean_text(raw.get("iata"), properties.get("iata"))
+    icao = _clean_text(raw.get("icao"), properties.get("icao"))
+
+    iata = iata.upper() if iata else None
+    icao = icao.upper() if icao else None
+
+    return (
+        iata if iata and _IATA_PATTERN.match(iata) else None,
+        icao if icao and _ICAO_PATTERN.match(icao) else None,
+    )
+
+
+def _is_military_airport(properties):
+    """True when the returned data marks the airport as military."""
+    properties = _as_dict(properties)
+    raw = _as_dict(_as_dict(properties.get("datasource")).get("raw"))
+
+    categories = [str(c).lower() for c in (properties.get("categories") or [])]
+    if any("military" in c for c in categories):
+        return True
+
+    tag = _clean_text(raw.get("military"))
+    if tag and tag.lower() != "no":
+        return True
+
+    name = _get_display_name(properties) or ""
+    return bool(_MILITARY_NAME_PATTERN.search(name))
+
+
+def _airport_sort_key(airport):
+    """Deterministic order: civil, then IATA-coded, then an international
+    category, then nearest. Distance never beats the earlier signals."""
+    categories = [str(c) for c in (airport.get("categories") or [])]
+
+    return (
+        0 if airport.get("iata") else 1,
+        1 if airport.get("military") else 0,
+        airport.get("distance_km", float("inf")),
+        0 if any(c.startswith("airport.international") for c in categories) else 1,
+        _normalise_text(airport.get("name", "")),
+    )
+
+
+def _get_airport_features(latitude, longitude):
+    """Airport candidates from Geoapify. Raises if the request failed."""
+    try:
+        return _request_place_features(
+            latitude,
+            longitude,
+            AIRPORT_CATEGORY,
+            limit=AIRPORT_PER_GROUP_LIMIT,
+            radius=AIRPORT_SEARCH_RADIUS_METERS,
+        )
+    except requests.RequestException as error:
+        print("Geoapify airport search failed:", _redact(error))
+        raise RuntimeError("Geoapify airport search failed.") from error
+
+
+def get_airports(latitude, longitude, limit=AIRPORT_RESULT_LIMIT):
+    """Ranked airports around a point, using only Geoapify data."""
+    features = _get_airport_features(latitude, longitude)
+
+    candidates = []
+    seen_ids = set()
+
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+
+        properties = _as_dict(feature.get("properties"))
+        name = _get_display_name(properties)
+        coordinates = _extract_coordinates(feature)
+
+        if not name or not re.search(r"[^\W_]", name) or not coordinates:
+            continue
+
+        place_id = properties.get("place_id")
+        if place_id and place_id in seen_ids:
+            continue
+
+        airport_latitude, airport_longitude = coordinates
+        distance_km = _calculate_distance_km(
+            latitude,
+            longitude,
+            airport_latitude,
+            airport_longitude,
+        )
+
+        if distance_km > AIRPORT_SEARCH_RADIUS_METERS / 1000:
+            continue
+
+        if place_id:
+            seen_ids.add(place_id)
+
+        iata, icao = _extract_airport_codes(properties)
+        airport = {
+            "id": place_id,
+            "name": name.strip(),
+            "iata": iata,
+            "icao": icao,
+            "categories": properties.get("categories") or [],
+            "latitude": airport_latitude,
+            "longitude": airport_longitude,
+            "distance_km": round(distance_km, 1),
+            "city": _clean_text(properties.get("city")),
+            "country": _clean_text(properties.get("country")),
+            "formatted_address": _clean_text(properties.get("formatted")),
+            "military": (
+                True if not iata and _is_military_airport(properties) else None
+            ),
+        }
+        candidates.append(airport)
+
+    candidates.sort(key=_airport_sort_key)
+
+    # One record per IATA code: the best-ranked one (the list is sorted).
+    airports = []
+    seen_iata = set()
+    for airport in candidates:
+        iata = airport.get("iata")
+        if iata:
+            if iata in seen_iata:
+                continue
+            seen_iata.add(iata)
+        airports.append(airport)
+
+    return [
+        {key: value for key, value in airport.items() if value not in (None, "", [])}
+        for airport in airports[:limit]
+    ]
+
+
+def _get_city_airports(city):
+    """Resolve one city and return its airports, or None if the city cannot
+    be resolved. Reuses get_coordinates and the same locality + city retry
+    used for restaurants and hotels (e.g. "Shivajinagar,Pune")."""
+    if not isinstance(city, str) or not city.strip():
+        return None
+
+    city = city.strip()
+
+    attempts = [city]
+    parts = [part.strip() for part in city.split(",") if part.strip()]
+    if len(parts) > 1 and parts[-1].lower() != city.lower():
+        attempts.append(parts[-1])
+
+    resolved = None
+
+    for attempt in attempts:
+        coordinates = get_coordinates(attempt)
+        if not coordinates:
+            continue
+
+        latitude, longitude = coordinates
+        airports = get_airports(latitude, longitude)
+        resolved = {
+            "city": attempt,
+            "latitude": latitude,
+            "longitude": longitude,
+            "airports": airports,
+        }
+
+        if airports:
+            break
+
+    if not resolved:
+        return None
+
+    # Only a civil airport with a valid IATA code is a usable flight endpoint;
+    # otherwise there is no primary airport (never "nearest by default").
+    top = resolved["airports"][0] if resolved["airports"] else None
+    resolved["primary_airport"] = top if top and top.get("iata") else None
+
+    return resolved
+
+
+def get_flight_route_for_cities(source, destination):
+    """Airport and distance data for a source -> destination route.
+
+    Returns {"origin", "destination", "distance_km"}. An unresolved city is
+    None, and distance_km is None unless both cities resolved. No schedules,
+    fares, availability or flight status are produced here.
+    """
+    origin = _get_city_airports(source)
+    destination_data = _get_city_airports(destination)
+
+    distance_km = None
+    if origin and destination_data:
+        distance_km = round(
+            _calculate_distance_km(
+                origin["latitude"],
+                origin["longitude"],
+                destination_data["latitude"],
+                destination_data["longitude"],
+            ),
+            1,
+        )
+
+    return {
+        "origin": origin,
+        "destination": destination_data,
+        "distance_km": distance_km,
+    }
