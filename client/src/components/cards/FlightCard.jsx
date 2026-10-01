@@ -112,13 +112,13 @@ function FlightCard({
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <AirportBlock
               label="Departure"
-              city={route.source}
+              city={origin?.city}
               airport={origin?.primary_airport}
             />
 
             <AirportBlock
               label="Arrival"
-              city={route.destination}
+              city={destination?.city}
               airport={destination?.primary_airport}
             />
           </div>
