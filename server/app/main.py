@@ -1,4 +1,4 @@
-from app.db.database import init_db
+﻿from app.db.database import init_db
 from app.graph.travel_graph import travel_graph
 from app.models.chatbot import ChatRequest
 from app.models.trip import TripRequest
@@ -15,6 +15,7 @@ from app.services.places_service import (
     get_attractions_for_destination,
     get_hotels_for_destination,
     get_restaurants_for_destination,
+    get_flight_route_for_cities,
 )
 from app.services.weather_service import (
     get_weather,
@@ -60,7 +61,7 @@ app.include_router(trips_router)
 
 @app.get("/")
 def home():
-    return {"message": "Welcome to Voyagent AI Backend 🚀"}
+    return {"message": "Welcome to Voyagent AI Backend ðŸš€"}
 
 
 # ============================================================
@@ -205,6 +206,56 @@ def get_destination_hotels(destination: str):
 # ============================================================
 # Live Weather Route
 # ============================================================
+
+
+# ============================================================
+# Flights Route
+# ============================================================
+
+
+@app.get("/flights")
+def get_destination_flights(
+    source: str,
+    destination: str,
+):
+    try:
+        source = source.strip()
+        destination = destination.strip()
+
+        if not source or not destination:
+            raise HTTPException(
+                status_code=400,
+                detail="Source and destination are required.",
+            )
+
+        route = get_flight_route_for_cities(
+            source,
+            destination,
+        )
+
+        return {
+            "status": "success",
+            "source": source,
+            "destination": destination,
+            "flight_provider": {
+                "configured": False,
+                "name": "AviationStack",
+                "live_data_available": False,
+            },
+            "route": route,
+            "flights": [],
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        print("FLIGHTS ERROR:", _redact(error))
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to load flight information right now.",
+        )
 
 
 @app.get("/weather")
