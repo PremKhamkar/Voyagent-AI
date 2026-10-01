@@ -8,6 +8,7 @@ import BudgetCard from "../../components/cards/BudgetCard";
 import AttractionCard from "../../components/cards/AttractionCard";
 import RestaurantCard from "../../components/cards/RestaurantCard";
 import HotelCard from "../../components/cards/HotelCard";
+import FlightCard from "../../components/cards/FlightCard";
 import AccommodationCard from "../../components/cards/AccommodationCard";
 import GoogleMap from "../../components/maps/GoogleMap";
 import LocationPicker from "../../components/location/LocationPicker";
@@ -54,6 +55,14 @@ function Planner() {
   const [hotelsError, setHotelsError] = useState("");
   // Same stale-response guard as restaurants, for real hotel listings.
   const hotelsRequestId = useRef(0);
+
+  const [flights, setFlights] = useState([]);
+  const [flightRoute, setFlightRoute] = useState(null);
+  const [flightProvider, setFlightProvider] = useState(null);
+  const [flightsLoading, setFlightsLoading] = useState(false);
+  const [flightsError, setFlightsError] = useState("");
+  // Prevents a slower flight request from overwriting a newer trip.
+  const flightsRequestId = useRef(0);
 
   const [isSaved, setIsSaved] = useState(false);
 
@@ -269,6 +278,59 @@ function Planner() {
     }
   }
 
+  async function fetchFlights(source, destination) {
+    if (!source?.trim() || !destination?.trim()) {
+      return;
+    }
+
+    const requestId = ++flightsRequestId.current;
+
+    setFlightsLoading(true);
+    setFlightsError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/flights?source=${encodeURIComponent(
+          source.trim()
+        )}&destination=${encodeURIComponent(
+          destination.trim()
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Unable to load flight information."
+        );
+      }
+
+      if (requestId !== flightsRequestId.current) {
+        return;
+      }
+
+      setFlights(data.flights || []);
+      setFlightRoute(data.route || null);
+      setFlightProvider(data.flight_provider || null);
+    } catch (error) {
+      if (requestId !== flightsRequestId.current) {
+        return;
+      }
+
+      console.error("Flights fetch error:", error);
+      setFlightsError(
+        error.message || "Unable to load flight information."
+      );
+      setFlights([]);
+      setFlightRoute(null);
+      setFlightProvider(null);
+    } finally {
+      if (requestId === flightsRequestId.current) {
+        setFlightsLoading(false);
+      }
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -352,6 +414,10 @@ function Planner() {
     setRestaurantsError("");
     setHotels([]);
     setHotelsError("");
+    setFlights([]);
+    setFlightRoute(null);
+    setFlightProvider(null);
+    setFlightsError("");
     setIsSaved(false);
 
     // Fired without awaiting: this only needs the destination name,
@@ -360,6 +426,7 @@ function Planner() {
     fetchAttractions(trip.destination);
     fetchRestaurants(trip.destination);
     fetchHotels(trip.destination);
+    fetchFlights(trip.sourceCity, trip.destination);
 
     try {
       const response = await fetch(
@@ -947,6 +1014,9 @@ function Planner() {
                     restaurantsError={restaurantsError}
                     hotelsLoading={hotelsLoading}
                     hotelsError={hotelsError}
+                    flightsLoading={flightsLoading}
+                    flightsError={flightsError}
+                    flightProvider={flightProvider}
                   />
                 </div>
               )}
@@ -1270,7 +1340,9 @@ function Planner() {
             restaurantsLoading ||
             restaurants.length > 0 ||
             hotelsLoading ||
-            hotels.length > 0) && (
+            hotels.length > 0 ||
+            flightsLoading ||
+            flightRoute) && (
               <div className="mt-8 grid w-full min-w-0 gap-6">
 
                 {/* Live Weather */}
@@ -1373,6 +1445,16 @@ function Planner() {
                     hotels={hotels}
                     isLoading={hotelsLoading}
                     error={hotelsError}
+                  />
+                </div>
+
+                <div className="w-full min-w-0 max-w-full overflow-hidden">
+                  <FlightCard
+                    flights={flights}
+                    route={flightRoute}
+                    provider={flightProvider}
+                    isLoading={flightsLoading}
+                    error={flightsError}
                   />
                 </div>
 

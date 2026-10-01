@@ -36,6 +36,9 @@ function AgentFlow({
   restaurantsError = "",
   hotelsLoading = false,
   hotelsError = "",
+  flightsLoading = false,
+  flightsError = "",
+  flightProvider = null,
 }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -92,6 +95,23 @@ function AgentFlow({
     done: "Verified hotel listings are ready",
     failed: "Not available right now",
   }[hotelsStatus];
+
+  // Real status: this mirrors the actual /flights request.
+  let flightsStatus = "done";
+
+  if (flightsLoading) {
+    flightsStatus = "loading";
+  } else if (flightsError) {
+    flightsStatus = "failed";
+  }
+
+  const flightsDetail = {
+    loading: "Looking up airport route information",
+    done: flightProvider?.live_data_available
+      ? "Live flight information is ready"
+      : "Route information is ready; live flight data is not configured",
+    failed: "Not available right now",
+  }[flightsStatus];
 
   return (
     <div
@@ -165,6 +185,18 @@ function AgentFlow({
             </p>
 
             <p className="text-xs text-slate-500">{hotelsDetail}</p>
+          </div>
+        </li>
+
+        <li className="flex items-start gap-3">
+          <StatusIcon status={flightsStatus} />
+
+          <div>
+            <p className="text-sm font-semibold text-slate-700">
+              Checking flight route information
+            </p>
+
+            <p className="text-xs text-slate-500">{flightsDetail}</p>
           </div>
         </li>
       </ul>
