@@ -7,6 +7,7 @@ import WeatherCard from "../../components/cards/WeatherCard";
 import BudgetCard from "../../components/cards/BudgetCard";
 import AttractionCard from "../../components/cards/AttractionCard";
 import RestaurantCard from "../../components/cards/RestaurantCard";
+import HotelCard from "../../components/cards/HotelCard";
 import AccommodationCard from "../../components/cards/AccommodationCard";
 import GoogleMap from "../../components/maps/GoogleMap";
 import LocationPicker from "../../components/location/LocationPicker";
@@ -48,6 +49,11 @@ function Planner() {
   // Identifies the latest restaurant request so a slow response from an
   // earlier search can never overwrite the newer results.
   const restaurantsRequestId = useRef(0);
+  const [hotels, setHotels] = useState([]);
+  const [hotelsLoading, setHotelsLoading] = useState(false);
+  const [hotelsError, setHotelsError] = useState("");
+  // Same stale-response guard as restaurants, for real hotel listings.
+  const hotelsRequestId = useRef(0);
 
   const [isSaved, setIsSaved] = useState(false);
 
@@ -216,6 +222,53 @@ function Planner() {
     }
   }
 
+  async function fetchHotels(destination) {
+    if (!destination?.trim()) {
+      return;
+    }
+
+    const requestId = ++hotelsRequestId.current;
+
+    setHotelsLoading(true);
+    setHotelsError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/hotels?destination=${encodeURIComponent(
+          destination.trim()
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Unable to load hotels."
+        );
+      }
+
+      if (requestId !== hotelsRequestId.current) {
+        return;
+      }
+
+      setHotels(data.hotels || []);
+    } catch (error) {
+      if (requestId !== hotelsRequestId.current) {
+        return;
+      }
+
+      console.error("Hotels fetch error:", error);
+      setHotelsError(
+        error.message || "Unable to load hotels."
+      );
+      setHotels([]);
+    } finally {
+      if (requestId === hotelsRequestId.current) {
+        setHotelsLoading(false);
+      }
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -297,6 +350,8 @@ function Planner() {
     setAttractionsError("");
     setRestaurants([]);
     setRestaurantsError("");
+    setHotels([]);
+    setHotelsError("");
     setIsSaved(false);
 
     // Fired without awaiting: this only needs the destination name,
@@ -304,6 +359,7 @@ function Planner() {
     // instead of waiting for it to finish first.
     fetchAttractions(trip.destination);
     fetchRestaurants(trip.destination);
+    fetchHotels(trip.destination);
 
     try {
       const response = await fetch(
@@ -889,6 +945,8 @@ function Planner() {
                     attractionsError={attractionsError}
                     restaurantsLoading={restaurantsLoading}
                     restaurantsError={restaurantsError}
+                    hotelsLoading={hotelsLoading}
+                    hotelsError={hotelsError}
                   />
                 </div>
               )}
@@ -1210,7 +1268,9 @@ function Planner() {
             attractionsLoading ||
             attractions.length > 0 ||
             restaurantsLoading ||
-            restaurants.length > 0) && (
+            restaurants.length > 0 ||
+            hotelsLoading ||
+            hotels.length > 0) && (
               <div className="mt-8 grid w-full min-w-0 gap-6">
 
                 {/* Live Weather */}
@@ -1305,6 +1365,14 @@ function Planner() {
                 <div className="w-full min-w-0 max-w-full overflow-hidden">
                   <AccommodationCard
                     content={accommodationPlan}
+                  />
+                </div>
+
+                <div className="w-full min-w-0 max-w-full overflow-hidden">
+                  <HotelCard
+                    hotels={hotels}
+                    isLoading={hotelsLoading}
+                    error={hotelsError}
                   />
                 </div>
 

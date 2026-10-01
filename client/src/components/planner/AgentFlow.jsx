@@ -34,6 +34,8 @@ function AgentFlow({
   attractionsError = "",
   restaurantsLoading = false,
   restaurantsError = "",
+  hotelsLoading = false,
+  hotelsError = "",
 }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -75,6 +77,21 @@ function AgentFlow({
     done: "Verified restaurant listings are ready",
     failed: "Not available right now",
   }[restaurantsStatus];
+
+  // Real status: this mirrors the actual /hotels request.
+  let hotelsStatus = "done";
+
+  if (hotelsLoading) {
+    hotelsStatus = "loading";
+  } else if (hotelsError) {
+    hotelsStatus = "failed";
+  }
+
+  const hotelsDetail = {
+    loading: "Looking up real hotels near your destination",
+    done: "Verified hotel listings are ready",
+    failed: "Not available right now",
+  }[hotelsStatus];
 
   return (
     <div
@@ -137,6 +154,17 @@ function AgentFlow({
             </p>
 
             <p className="text-xs text-slate-500">{restaurantsDetail}</p>
+          </div>
+        </li>
+        <li className="flex items-start gap-3">
+          <StatusIcon status={hotelsStatus} />
+
+          <div>
+            <p className="text-sm font-semibold text-slate-700">
+              Finding hotels near your destination
+            </p>
+
+            <p className="text-xs text-slate-500">{hotelsDetail}</p>
           </div>
         </li>
       </ul>
