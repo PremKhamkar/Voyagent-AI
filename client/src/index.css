@@ -5,3 +5,9 @@
 html {
   scroll-behavior: smooth;
 }
+/* Keep landing sections clear of the sticky navbar when jumped to. */
+#features,
+#destinations,
+#about {
+  scroll-margin-top: 5rem;
+}
