@@ -70,3 +70,20 @@ class SavedTrip(Base):
     saved_at = Column(DateTime, default=_utcnow)
 
     owner = relationship("User", back_populates="saved_trips")
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    rating = Column(Integer, nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=_utcnow)
+
+    user = relationship("User")

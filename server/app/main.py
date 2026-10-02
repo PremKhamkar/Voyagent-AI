@@ -4,6 +4,7 @@ from app.models.chatbot import ChatRequest
 from app.models.trip import TripRequest
 from app.routers.auth import router as auth_router
 from app.routers.trips import router as trips_router
+from app.routers.feedback import router as feedback_router
 from app.services.chatbot_service import generate_chatbot_response
 from app.services.location_service import (
     get_children,
@@ -52,6 +53,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(trips_router)
+app.include_router(feedback_router)
 
 
 # ============================================================
