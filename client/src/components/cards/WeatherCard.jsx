@@ -14,9 +14,12 @@ function WeatherCard({ content }) {
   const [expandedForecast, setExpandedForecast] =
     useState(null);
 
+  const [showDetails, setShowDetails] =
+    useState(false);
+
   if (!weather || typeof weather !== "object") {
     return (
-      <div className="overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-xl">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm">
         <div className="p-8 text-center">
           <div className="text-4xl">🌦️</div>
 
@@ -24,7 +27,7 @@ function WeatherCard({ content }) {
             Weather Information
           </h2>
 
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-slate-600">
             Weather information will appear here.
           </p>
         </div>
@@ -143,6 +146,7 @@ function WeatherCard({ content }) {
     );
   }
 
+  // One forecast detail (daily OR hourly) is open at a time.
   function toggleForecast(type, key) {
     const forecastKey = `${type}-${key}`;
 
@@ -153,20 +157,23 @@ function WeatherCard({ content }) {
     );
   }
 
-  function handleForecastKeyDown(
-    event,
-    type,
-    key
-  ) {
+  function toggleDetails() {
+    // Closing the section also closes any open hourly detail.
     if (
-      event.key === "Enter" ||
-      event.key === " "
+      showDetails &&
+      typeof expandedForecast === "string" &&
+      expandedForecast.startsWith("hourly-")
     ) {
-      event.preventDefault();
-
-      toggleForecast(type, key);
+      setExpandedForecast(null);
     }
+
+    setShowDetails((previous) => !previous);
   }
+
+  // Only claim LIVE when the backend actually returned an observation.
+  const isLive =
+    weather.weather_main !== "Unavailable" &&
+    Boolean(weather.last_updated);
 
   const hourly = Array.isArray(weather.hourly)
     ? weather.hourly.slice(0, 12)
@@ -176,7 +183,17 @@ function WeatherCard({ content }) {
     ? weather.daily
     : [];
 
-  const metrics = [
+  const location = [
+    weather.city || "Unknown",
+    weather.country && weather.country !== "Unknown"
+      ? weather.country
+      : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  // Shown in the primary summary.
+  const summaryStats = [
     {
       icon: "💧",
       label: "Humidity",
@@ -193,6 +210,19 @@ function WeatherCard({ content }) {
           ? `${weather.wind_speed} m/s`
           : "N/A",
     },
+    {
+      icon: "🌧️",
+      label: "Rain",
+      value:
+        weather.rain_probability !==
+        undefined
+          ? `${weather.rain_probability}%`
+          : "N/A",
+    },
+  ];
+
+  // Shown only inside "Hourly forecast & more details".
+  const detailMetrics = [
     {
       icon: "🧭",
       label: "Direction",
@@ -224,684 +254,377 @@ function WeatherCard({ content }) {
           ? `${weather.clouds}%`
           : "N/A",
     },
-    {
-      icon: "🌧️",
-      label: "Rain Chance",
-      value:
-        weather.rain_probability !==
-        undefined
-          ? `${weather.rain_probability}%`
-          : "N/A",
-    },
-    {
-      icon: "🌡️",
-      label: "Feels Like",
-      value:
-        weather.feels_like !== undefined
-          ? `${weather.feels_like}°C`
-          : "N/A",
-    },
   ];
 
+  const expandedDay = daily.find(
+    (day, index) =>
+      expandedForecast === `daily-${index}`
+  );
+
+  const expandedHour = hourly.find(
+    (item, index) =>
+      expandedForecast === `hourly-${index}`
+  );
+
+  const chipClass = (isExpanded) =>
+    `shrink-0 rounded-xl border px-3 py-2.5 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 ${
+      isExpanded
+        ? "border-cyan-400 bg-white shadow-sm"
+        : "border-slate-200 bg-slate-50 hover:border-cyan-300 hover:bg-white"
+    }`;
+
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 text-white shadow-xl">
+    <div
+      role="region"
+      aria-label="Weather information"
+      className="overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-sm"
+    >
+      {/* Top row: location + live state */}
 
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
-      <div className="border-b border-white/10 bg-gradient-to-r from-slate-900 via-blue-950 to-cyan-950 px-5 py-4.5 md:px-6">
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xl">
-              🌦️
-            </div>
-
-            <div>
-
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-                Live Weather
-              </p>
-
-              <h2 className="mt-0.5 text-xl font-black tracking-tight">
-                Weather Information
-              </h2>
-
-              <p className="text-xs text-slate-300">
-                {weather.city || "Unknown"},{" "}
-                {weather.country || "Unknown"}
-              </p>
-
-            </div>
-
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-cyan-50 to-blue-50 px-5 py-3 md:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm">
+            🌦️
           </div>
 
-          <span className="inline-flex w-fit items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300">
-
-            <span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400" />
-
-            LIVE
-
-          </span>
-
+          <h2 className="truncate text-lg font-bold text-slate-800">
+            {location}
+          </h2>
         </div>
 
+        <span
+          className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-bold ${
+            isLive
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          <span
+            className={`mr-2 h-1.5 w-1.5 rounded-full ${
+              isLive ? "bg-emerald-500" : "bg-slate-400"
+            }`}
+          />
+
+          {isLive ? "LIVE" : "UNAVAILABLE"}
+        </span>
       </div>
 
-      {/* =====================================================
-          CURRENT WEATHER
-      ====================================================== */}
+      <div className="px-5 py-4 md:px-6">
 
-      <div className="p-4.5 md:p-6">
+        {!isLive && (
+          <p className="text-sm text-slate-600">
+            Weather data is unavailable right now.
+          </p>
+        )}
 
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800 p-4.5 md:p-5">
+        {/* Primary summary */}
 
+        {isLive && (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-            <div className="flex items-center gap-4">
-
-              <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white">
                 {weather.weather_icon ? (
                   <img
                     src={weather.weather_icon}
-                    alt={
-                      weather.weather ||
-                      "Weather"
-                    }
-                    className="h-16 w-16"
+                    alt=""
+                    className="h-12 w-12"
                   />
                 ) : (
-                  <span className="text-3xl">
-                    🌦️
-                  </span>
+                  <span className="text-2xl">🌦️</span>
                 )}
-
               </div>
 
               <div>
-
                 <div className="flex items-start">
-
-                  <span className="text-5xl font-black leading-none tracking-tight">
+                  <span className="text-4xl font-black leading-none tracking-tight">
                     {weather.temperature}
                   </span>
 
-                  <span className="ml-1 text-xl font-semibold text-cyan-300">
+                  <span className="ml-1 text-lg font-semibold text-cyan-700">
                     °C
                   </span>
-
                 </div>
 
-                <p className="mt-1 text-sm font-semibold capitalize text-slate-200">
-                  {weather.weather ||
-                    "Unknown"}
-                </p>
-
-                <p className="mt-0.5 text-xs text-slate-400">
-                  Feels like{" "}
-                  <span className="font-semibold text-slate-200">
-                    {weather.feels_like}°C
+                <p className="mt-1 text-sm font-semibold capitalize text-slate-700">
+                  {weather.weather || "Unknown"}
+                  <span className="font-normal text-slate-600">
+                    {" "}
+                    · Feels like {weather.feels_like}°C
                   </span>
                 </p>
-
               </div>
-
             </div>
 
-            <div className="rounded-xl border border-cyan-400/10 bg-cyan-400/5 px-4 py-3 sm:min-w-[160px]">
+            <div className="grid grid-cols-3 gap-2 sm:w-72">
+              {summaryStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2"
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                    <span aria-hidden="true">{stat.icon}</span>{" "}
+                    {stat.label}
+                  </p>
 
-              <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-300">
-                Conditions
-              </p>
-
-              <p className="mt-1 text-base font-bold text-white">
-                {weather.weather_main ||
-                  weather.weather ||
-                  "Unavailable"}
-              </p>
-
-              <p className="mt-0.5 text-[10px] text-slate-500">
-                Current observation
-              </p>
-
+                  <p className="mt-0.5 text-sm font-bold text-slate-900">
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
             </div>
-
           </div>
+        )}
 
-        </div>
+        {/* Daily forecast (visible by default) */}
 
-        {/* =================================================
-            METRICS
-        ================================================== */}
+        {daily.length > 0 && (
+          <div className={isLive ? "mt-4" : "mt-3"}>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {daily.map((day, index) => {
+                const isExpanded =
+                  expandedForecast === `daily-${index}`;
 
-        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                return (
+                  <button
+                    key={day.date}
+                    type="button"
+                    aria-expanded={isExpanded}
+                    aria-controls="weather-daily-details"
+                    onClick={() =>
+                      toggleForecast("daily", index)
+                    }
+                    className={`${chipClass(isExpanded)} min-w-[96px]`}
+                  >
+                    <span className="block text-xs font-bold text-slate-800">
+                      {getDayLabel(day.date, index)}
+                    </span>
 
-          {metrics.map((metric) => (
-            <div
-              key={metric.label}
-              className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 transition hover:border-cyan-400/30 hover:bg-slate-800"
-            >
-
-              <div className="flex items-center gap-1.5">
-
-                <span className="text-sm">
-                  {metric.icon}
-                </span>
-
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                  {metric.label}
-                </p>
-
-              </div>
-
-              <p className="mt-1.5 text-xs font-bold text-white">
-                {metric.value}
-              </p>
-
-            </div>
-          ))}
-
-        </div>
-
-        {/* =================================================
-            SUNRISE / SUNSET
-        ================================================== */}
-
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-
-          <div className="flex items-center justify-between rounded-xl border border-orange-400/10 bg-orange-500/5 px-4 py-3">
-
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-orange-300">
-                🌅 Sunrise
-              </p>
-
-              <p className="mt-1 text-base font-black text-white">
-                {formatTime(
-                  weather.sunrise
-                )}
-              </p>
-            </div>
-
-            <span className="text-xl">
-              🌄
-            </span>
-
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-indigo-400/10 bg-indigo-500/5 px-4 py-3">
-
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-300">
-                🌇 Sunset
-              </p>
-
-              <p className="mt-1 text-base font-black text-white">
-                {formatTime(
-                  weather.sunset
-                )}
-              </p>
-            </div>
-
-            <span className="text-xl">
-              🌆
-            </span>
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            UPCOMING WEATHER
-        ================================================== */}
-
-        {hourly.length > 0 && (
-          <div className="mt-6">
-
-            <div className="mb-3 flex items-end justify-between gap-3">
-
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-                  Next Forecast
-                </p>
-
-                <h3 className="mt-0.5 text-lg font-black">
-                  Upcoming Weather
-                </h3>
-
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  Click a card for more details
-                </p>
-              </div>
-
-              <span className="hidden text-[10px] font-semibold text-slate-500 sm:block">
-                3-hour intervals
-              </span>
-
-            </div>
-
-            <div className="flex gap-2.5 overflow-x-auto pb-2">
-
-              {hourly.map(
-                (item, index) => {
-                  const forecastKey =
-                    `hourly-${index}`;
-
-                  const isExpanded =
-                    expandedForecast ===
-                    forecastKey;
-
-                  return (
-                    <div
-                      key={`${item.time}-${index}`}
-                      role="button"
-                      tabIndex={0}
-                      aria-expanded={
-                        isExpanded
-                      }
-                      onClick={() =>
-                        toggleForecast(
-                          "hourly",
-                          index
-                        )
-                      }
-                      onKeyDown={(event) =>
-                        handleForecastKeyDown(
-                          event,
-                          "hourly",
-                          index
-                        )
-                      }
-                      className={`min-w-[150px] rounded-xl border p-3.5 outline-none transition duration-200 ${
-                        isExpanded
-                          ? "border-cyan-400/50 bg-slate-800 shadow-md shadow-cyan-950/30"
-                          : "border-white/10 bg-slate-900 hover:-translate-y-0.5 hover:border-cyan-400/30 hover:bg-slate-800"
-                      }`}
-                    >
-
-                      <div className="flex items-start justify-between gap-2">
-
-                        <div>
-
-                          <p className="text-[11px] font-bold text-cyan-300">
-                            {getForecastTime(
-                              item.time
-                            )}
-                          </p>
-
-                          <p className="mt-0.5 text-[10px] text-slate-500">
-                            {getForecastDay(
-                              item.time
-                            )}
-                          </p>
-
-                        </div>
-
-                        <span className="text-[10px] text-slate-500">
-                          {isExpanded
-                            ? "▲"
-                            : "▼"}
-                        </span>
-
-                      </div>
-
-                      {item.icon && (
+                    <span className="mt-1 flex items-center gap-1">
+                      {day.icon && (
                         <img
-                          src={item.icon}
-                          alt={
-                            item.condition ||
-                            "Forecast"
-                          }
-                          className="mt-2 h-11 w-11"
+                          src={day.icon}
+                          alt={day.condition || ""}
+                          className="h-8 w-8"
                         />
                       )}
 
-                      <p className="mt-1 text-xl font-black">
-                        {item.temperature}°
-                      </p>
+                      <span className="text-sm font-black text-slate-900">
+                        {day.max_temperature}°
+                      </span>
 
-                      <p className="mt-0.5 min-h-[30px] text-[11px] font-semibold capitalize text-slate-300">
-                        {item.condition ||
-                          "Unknown"}
-                      </p>
-
-                      <div className="mt-2 border-t border-white/10 pt-2 text-[10px] text-slate-400">
-
-                        <div className="flex justify-between gap-2">
-
-                          <span>
-                            🌧️{" "}
-                            {item.rain_probability}%
-                          </span>
-
-                          <span>
-                            💨{" "}
-                            {item.wind_speed} m/s
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                      {isExpanded && (
-                        <div className="mt-3 border-t border-cyan-400/20 pt-3">
-
-                          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.15em] text-cyan-300">
-                            Forecast Details
-                          </p>
-
-                          <div className="space-y-1.5 text-[10px]">
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Feels like
-                              </span>
-
-                              <span className="font-semibold text-white">
-                                {item.feels_like}°C
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Humidity
-                              </span>
-
-                              <span className="font-semibold text-white">
-                                {item.humidity}%
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Cloud cover
-                              </span>
-
-                              <span className="font-semibold text-white">
-                                {item.clouds}%
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Rain chance
-                              </span>
-
-                              <span className="font-semibold text-cyan-300">
-                                {item.rain_probability}%
-                              </span>
-                            </div>
-
-                          </div>
-
-                        </div>
-                      )}
-
-                    </div>
-                  );
-                }
-              )}
-
+                      <span className="text-xs font-semibold text-slate-600">
+                        {day.min_temperature}°
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
+            {expandedDay && (
+              <dl
+                id="weather-daily-details"
+                className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-cyan-100 bg-cyan-50/50 px-4 py-3 text-xs sm:grid-cols-3"
+              >
+                <div>
+                  <dt className="text-slate-600">Rain chance</dt>
+                  <dd className="font-semibold text-slate-900">
+                    {expandedDay.rain_probability}%
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-slate-600">Humidity</dt>
+                  <dd className="font-semibold text-slate-900">
+                    {expandedDay.humidity}%
+                  </dd>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <dt className="text-slate-600">Condition</dt>
+                  <dd className="font-semibold capitalize text-slate-900">
+                    {expandedDay.condition || "Unknown"}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
         )}
 
-        {/* =================================================
-            MULTI-DAY FORECAST
-        ================================================== */}
+        {/* Hourly + advanced details (collapsed by default) */}
 
-        {daily.length > 0 && (
-          <div className="mt-6">
+        {isLive && (
+          <div className="mt-4">
+            <button
+              type="button"
+              aria-expanded={showDetails}
+              aria-controls="weather-more-details"
+              onClick={toggleDetails}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+            >
+              Hourly forecast &amp; more details
 
-            <div className="mb-3">
+              <span
+                aria-hidden="true"
+                className={`text-xs transition-transform ${
+                  showDetails ? "rotate-180" : ""
+                }`}
+              >
+                ▾
+              </span>
+            </button>
 
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">
-                Extended Forecast
-              </p>
+            {showDetails && (
+              <div
+                id="weather-more-details"
+                className="mt-3 space-y-4"
+              >
+                {hourly.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-cyan-700">
+                      Hourly forecast · 3-hour intervals
+                    </p>
 
-              <h3 className="mt-0.5 text-lg font-black">
-                Multi-Day Forecast
-              </h3>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {hourly.map((item, index) => {
+                        const isExpanded =
+                          expandedForecast === `hourly-${index}`;
 
-              <p className="mt-0.5 text-[11px] text-slate-500">
-                Click a day for more details
-              </p>
+                        return (
+                          <button
+                            key={`${item.time}-${index}`}
+                            type="button"
+                            aria-expanded={isExpanded}
+                            aria-controls="weather-hourly-details"
+                            onClick={() =>
+                              toggleForecast("hourly", index)
+                            }
+                            className={`${chipClass(isExpanded)} min-w-[104px]`}
+                          >
+                            <span className="block text-xs font-bold text-cyan-700">
+                              {getForecastTime(item.time)}
+                            </span>
 
-            </div>
+                            <span className="block text-[11px] text-slate-600">
+                              {getForecastDay(item.time)}
+                            </span>
 
-            <div className="flex gap-2.5 overflow-x-auto pb-2">
+                            <span className="mt-1 flex items-center gap-1">
+                              {item.icon && (
+                                <img
+                                  src={item.icon}
+                                  alt={item.condition || ""}
+                                  className="h-8 w-8"
+                                />
+                              )}
 
-              {daily.map(
-                (day, index) => {
-                  const forecastKey =
-                    `daily-${index}`;
+                              <span className="text-sm font-black text-slate-900">
+                                {item.temperature}°
+                              </span>
+                            </span>
 
-                  const isExpanded =
-                    expandedForecast ===
-                    forecastKey;
+                            <span className="mt-0.5 block text-[11px] text-slate-600">
+                              <span aria-hidden="true">🌧️</span>{" "}
+                              {item.rain_probability}%
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                  return (
-                    <div
-                      key={day.date}
-                      role="button"
-                      tabIndex={0}
-                      aria-expanded={
-                        isExpanded
-                      }
-                      onClick={() =>
-                        toggleForecast(
-                          "daily",
-                          index
-                        )
-                      }
-                      onKeyDown={(event) =>
-                        handleForecastKeyDown(
-                          event,
-                          "daily",
-                          index
-                        )
-                      }
-                      className={`min-w-[210px] rounded-xl border p-4 outline-none transition duration-200 ${
-                        isExpanded
-                          ? "border-indigo-400/50 bg-slate-800 shadow-md shadow-indigo-950/30"
-                          : "border-white/10 bg-slate-900 hover:border-indigo-400/30 hover:bg-slate-800"
-                      }`}
-                    >
-
-                      <div className="flex items-start justify-between gap-2">
+                    {expandedHour && (
+                      <dl
+                        id="weather-hourly-details"
+                        className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-cyan-100 bg-cyan-50/50 px-4 py-3 text-xs sm:grid-cols-4"
+                      >
+                        <div>
+                          <dt className="text-slate-600">Feels like</dt>
+                          <dd className="font-semibold text-slate-900">
+                            {expandedHour.feels_like}°C
+                          </dd>
+                        </div>
 
                         <div>
-
-                          <p className="text-sm font-black text-white">
-                            {getDayLabel(
-                              day.date,
-                              index
-                            )}
-                          </p>
-
-                          <p className="mt-0.5 text-[10px] text-slate-500">
-                            {day.date}
-                          </p>
-
+                          <dt className="text-slate-600">Humidity</dt>
+                          <dd className="font-semibold text-slate-900">
+                            {expandedHour.humidity}%
+                          </dd>
                         </div>
 
-                        <div className="flex items-center gap-1">
-
-                          {day.icon && (
-                            <img
-                              src={day.icon}
-                              alt={
-                                day.condition ||
-                                "Forecast"
-                              }
-                              className="h-10 w-10"
-                            />
-                          )}
-
-                          <span className="text-[10px] text-slate-500">
-                            {isExpanded
-                              ? "▲"
-                              : "▼"}
-                          </span>
-
+                        <div>
+                          <dt className="text-slate-600">Cloud cover</dt>
+                          <dd className="font-semibold text-slate-900">
+                            {expandedHour.clouds}%
+                          </dd>
                         </div>
 
-                      </div>
+                        <div>
+                          <dt className="text-slate-600">Rain chance</dt>
+                          <dd className="font-semibold text-slate-900">
+                            {expandedHour.rain_probability}%
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                  </div>
+                )}
 
-                      <p className="mt-2 text-xs font-semibold capitalize text-slate-300">
-                        {day.condition ||
-                          "Unknown"}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {detailMetrics.map((metric) => (
+                    <div
+                      key={metric.label}
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
+                    >
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                        <span aria-hidden="true">{metric.icon}</span>{" "}
+                        {metric.label}
                       </p>
 
-                      <div className="mt-2 flex items-end gap-2">
-
-                        <span className="text-2xl font-black">
-                          {day.max_temperature}°
-                        </span>
-
-                        <span className="pb-0.5 text-xs font-semibold text-slate-500">
-                          {day.min_temperature}°
-                        </span>
-
-                      </div>
-
-                      <div className="mt-2.5 grid grid-cols-2 gap-2">
-
-                        <div className="rounded-lg bg-slate-800 px-2.5 py-2">
-
-                          <p className="text-[9px] uppercase tracking-wide text-slate-500">
-                            Rain
-                          </p>
-
-                          <p className="mt-0.5 text-[10px] font-bold text-white">
-                            🌧️{" "}
-                            {day.rain_probability}%
-                          </p>
-
-                        </div>
-
-                        <div className="rounded-lg bg-slate-800 px-2.5 py-2">
-
-                          <p className="text-[9px] uppercase tracking-wide text-slate-500">
-                            Humidity
-                          </p>
-
-                          <p className="mt-0.5 text-[10px] font-bold text-white">
-                            💧{" "}
-                            {day.humidity}%
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                      {isExpanded && (
-                        <div className="mt-3 border-t border-indigo-400/20 pt-3">
-
-                          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.15em] text-indigo-300">
-                            Day Details
-                          </p>
-
-                          <div className="space-y-1.5 text-[10px]">
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                High
-                              </span>
-
-                              <span className="font-semibold text-white">
-                                {day.max_temperature}°C
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Low
-                              </span>
-
-                              <span className="font-semibold text-white">
-                                {day.min_temperature}°C
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Rain chance
-                              </span>
-
-                              <span className="font-semibold text-cyan-300">
-                                {day.rain_probability}%
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Humidity
-                              </span>
-
-                              <span className="font-semibold text-white">
-                                {day.humidity}%
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between gap-2">
-                              <span className="text-slate-500">
-                                Condition
-                              </span>
-
-                              <span className="max-w-[120px] text-right font-semibold capitalize text-white">
-                                {day.condition ||
-                                  "Unknown"}
-                              </span>
-                            </div>
-
-                          </div>
-
-                        </div>
-                      )}
-
+                      <p className="mt-1 text-xs font-bold text-slate-900">
+                        {metric.value}
+                      </p>
                     </div>
-                  );
-                }
-              )}
+                  ))}
+                </div>
 
-            </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-orange-700">
+                      <span aria-hidden="true">🌅</span> Sunrise
+                    </p>
 
+                    <p className="mt-1 text-base font-black text-slate-900">
+                      {formatTime(weather.sunrise)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-700">
+                      <span aria-hidden="true">🌇</span> Sunset
+                    </p>
+
+                    <p className="mt-1 text-base font-black text-slate-900">
+                      {formatTime(weather.sunset)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
-
       </div>
 
-      {/* =====================================================
-          FOOTER
-      ====================================================== */}
+      {/* Footer */}
 
-      <div className="border-t border-white/10 bg-black/20 px-5 py-3 md:px-6">
+      <div className="flex flex-col gap-0.5 border-t border-slate-200 bg-slate-50 px-5 py-2.5 text-[11px] text-slate-600 sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <span>Weather provided by OpenWeather</span>
 
-        <div className="flex flex-col gap-1 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-
+        {weather.last_updated && (
           <span>
-            Weather provided by OpenWeather
+            Weather data: {formatDateTime(weather.last_updated)}
           </span>
-
-          {weather.last_updated && (
-            <span>
-              Weather data:{" "}
-              {formatDateTime(
-                weather.last_updated
-              )}
-            </span>
-          )}
-
-        </div>
-
+        )}
       </div>
-
     </div>
   );
 }
