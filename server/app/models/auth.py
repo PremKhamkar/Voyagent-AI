@@ -27,3 +27,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(..., min_length=1, max_length=4096)

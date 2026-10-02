@@ -5,6 +5,7 @@ import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/Input";
 import Button from "../../components/ui/Button";
 import API_BASE_URL from "../../constants/api";
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 
 function Register({
   isModal = false,
@@ -173,42 +174,8 @@ function Register({
 
       {/* Social Register */}
 
-      <div className="mb-6 grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          className="
-            flex h-11 items-center justify-center gap-2
-            rounded-xl border border-slate-200
-            bg-white
-            text-sm font-medium text-slate-700
-            shadow-sm
-            transition
-            hover:bg-slate-50
-          "
-        >
-          <span className="text-base font-bold text-blue-600">
-            f
-          </span>
-          Facebook
-        </button>
-
-        <button
-          type="button"
-          className="
-            flex h-11 items-center justify-center gap-2
-            rounded-xl border border-slate-200
-            bg-white
-            text-sm font-medium text-slate-700
-            shadow-sm
-            transition
-            hover:bg-slate-50
-          "
-        >
-          <span className="text-base font-bold">
-            G
-          </span>
-          Google
-        </button>
+      <div className="mb-6 flex items-center justify-center">
+        <GoogleSignInButton text="signup_with" />
       </div>
 
       {/* Divider */}
