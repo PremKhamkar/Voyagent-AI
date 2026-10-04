@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+import API_BASE_URL from "../../constants/api";
+
 function Profile() {
   const userName =
     localStorage.getItem("userName") || "Traveler";
@@ -12,22 +14,58 @@ function Profile() {
   const firstName = userName.split(" ")[0];
 
   const [savedTrips, setSavedTrips] = useState([]);
+  const [tripsLoading, setTripsLoading] = useState(() =>
+    Boolean(localStorage.getItem("voyagent_token"))
+  );
+  const [tripsError, setTripsError] = useState("");
 
+  // Saved trips live in the backend database (GET /trips), the same
+  // source the Saved Trips page uses.
   useEffect(() => {
-    if (!userEmail || userEmail === "No email available") {
-      setSavedTrips([]);
+    const token = localStorage.getItem("voyagent_token");
+
+    // No token: nothing to load. The list stays empty and
+    // ProtectedRoute handles redirecting to login.
+    if (!token) {
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    let isCancelled = false;
 
-    const trips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+    async function fetchTrips() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/trips`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    setSavedTrips(trips);
-  }, [userEmail]);
+        if (!response.ok) {
+          throw new Error("Unable to load your saved trips.");
+        }
+
+        const data = await response.json();
+
+        if (!isCancelled) {
+          setSavedTrips(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!isCancelled) {
+          setTripsError("Unable to load your saved trips.");
+        }
+      } finally {
+        if (!isCancelled) {
+          setTripsLoading(false);
+        }
+      }
+    }
+
+    fetchTrips();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const destinationCount = new Set(
     savedTrips.map(
@@ -210,11 +248,17 @@ function Profile() {
                       </p>
 
                       <p className="mt-2 text-3xl font-black text-slate-800">
-                        {savedTrips.length}
+                        {tripsLoading ? "…" : savedTrips.length}
                       </p>
 
-                      <p className="mt-1 text-sm text-slate-500">
-                        Saved travel plans
+                      <p
+                        className={`mt-1 text-sm ${
+                          tripsError
+                            ? "text-red-600"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {tripsError || "Saved travel plans"}
                       </p>
                     </div>
 

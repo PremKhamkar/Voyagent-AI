@@ -1,17 +1,20 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+import API_BASE_URL from "../../constants/api";
+
 function Dashboard() {
   const navigate = useNavigate();
 
   const [showSuccess, setShowSuccess] = useState(true);
   const [savedTrips, setSavedTrips] = useState([]);
+  const [tripsLoading, setTripsLoading] = useState(() =>
+    Boolean(localStorage.getItem("voyagent_token"))
+  );
+  const [tripsError, setTripsError] = useState("");
 
   const userName =
     localStorage.getItem("userName") || "Traveler";
-
-  const userEmail =
-    localStorage.getItem("userEmail") || "";
 
   const firstName = userName.split(" ")[0];
 
@@ -23,21 +26,53 @@ function Dashboard() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Saved trips live in the backend database (GET /trips), the same
+  // source the Saved Trips page uses.
   useEffect(() => {
-    if (!userEmail) {
-      setSavedTrips([]);
+    const token = localStorage.getItem("voyagent_token");
+
+    // No token: nothing to load. The list stays empty and
+    // ProtectedRoute handles redirecting to login.
+    if (!token) {
       return;
     }
 
-    const storageKey =
-      `voyagent_saved_trips_${userEmail}`;
+    let isCancelled = false;
 
-    const trips = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
+    async function fetchTrips() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/trips`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    setSavedTrips(trips);
-  }, [userEmail]);
+        if (!response.ok) {
+          throw new Error("Unable to load your saved trips.");
+        }
+
+        const data = await response.json();
+
+        if (!isCancelled) {
+          setSavedTrips(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!isCancelled) {
+          setTripsError("Unable to load your saved trips.");
+        }
+      } finally {
+        if (!isCancelled) {
+          setTripsLoading(false);
+        }
+      }
+    }
+
+    fetchTrips();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   function handleLogout() {
     localStorage.removeItem("isLoggedIn");
@@ -458,7 +493,19 @@ function Dashboard() {
 
           </div>
 
-          {recentTrips.length === 0 ? (
+          {tripsLoading && (
+            <p className="mb-4 text-sm text-slate-500">
+              Loading your saved trips...
+            </p>
+          )}
+
+          {tripsError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {tripsError}
+            </div>
+          )}
+
+          {!tripsLoading && !tripsError && recentTrips.length === 0 ? (
 
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
 
