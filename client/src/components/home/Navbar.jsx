@@ -24,8 +24,11 @@ function Navbar() {
   function handleLogout() {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("rememberMe");
+    localStorage.removeItem("voyagent_token");
 
     setIsMenuOpen(false);
+    window.dispatchEvent(new Event("voyagent-auth-change"));
+
 
     navigate("/", { replace: true });
   }

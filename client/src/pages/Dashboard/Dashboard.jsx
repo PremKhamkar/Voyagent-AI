@@ -1,12 +1,21 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import API_BASE_URL from "../../constants/api";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [showSuccess, setShowSuccess] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(
+    () => Boolean(location.state?.loginSuccess)
+  );
+
+  useEffect(() => {
+    if (location.state?.loginSuccess) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
   const [savedTrips, setSavedTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(() =>
     Boolean(localStorage.getItem("voyagent_token"))
@@ -79,6 +88,8 @@ function Dashboard() {
     localStorage.removeItem("rememberMe");
     localStorage.removeItem("userName");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("voyagent_token");
+    window.dispatchEvent(new Event("voyagent-auth-change"));
 
     navigate("/", { replace: true });
   }
@@ -105,12 +116,11 @@ function Dashboard() {
     const difference =
       Math.ceil(
         (end - start) /
-          (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24)
       ) + 1;
 
-    return `${difference} ${
-      difference === 1 ? "Day" : "Days"
-    }`;
+    return `${difference} ${difference === 1 ? "Day" : "Days"
+      }`;
   }
 
   const recentTrips = savedTrips.slice(0, 3);
@@ -306,13 +316,13 @@ function Dashboard() {
             <p className="mt-3 text-3xl font-black text-slate-800">
               {savedTrips.length > 0
                 ? savedTrips.reduce(
-                    (total, trip) =>
-                      total +
-                      Number(
-                        trip.travelers || 0
-                      ),
-                    0
-                  )
+                  (total, trip) =>
+                    total +
+                    Number(
+                      trip.travelers || 0
+                    ),
+                  0
+                )
                 : 0}
             </p>
 
@@ -420,11 +430,10 @@ function Dashboard() {
 
             <div className="mt-5 font-semibold text-cyan-600">
               {savedTrips.length > 0
-                ? `View ${savedTrips.length} ${
-                    savedTrips.length === 1
-                      ? "Trip"
-                      : "Trips"
-                  } →`
+                ? `View ${savedTrips.length} ${savedTrips.length === 1
+                  ? "Trip"
+                  : "Trips"
+                } →`
                 : "Create Your First Trip →"}
             </div>
           </Link>

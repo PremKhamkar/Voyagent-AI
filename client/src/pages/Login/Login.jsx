@@ -81,6 +81,7 @@ function Login({
       localStorage.setItem("userName", data.user.name);
       localStorage.setItem("userEmail", data.user.email);
       localStorage.setItem("voyagent_token", data.access_token);
+      window.dispatchEvent(new Event("voyagent-auth-change"));
 
       if (rememberMe) {
         localStorage.setItem("rememberMe", "true");
@@ -90,106 +91,109 @@ function Login({
 
       setIsLoading(false);
 
-      navigate("/", { replace: true });
+      navigate("/", {
+        replace: true,
+        state: { loginSuccess: true },
+      });
     } catch (error) {
       setLoginError(
         "Could not reach the server. Please make sure the backend is running."
       );
       setIsLoading(false);
     }
-  
-}
 
-return (
-  <AuthLayout isModal={isModal}>
-    <div className="mb-8 text-center">
-      <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-        Welcome Back
-      </h2>
+  }
 
-      <p className="mt-2 text-sm text-slate-500">
-        Sign in to continue your journey.
-      </p>
-    </div>
+  return (
+    <AuthLayout isModal={isModal}>
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+          Welcome Back
+        </h2>
 
-    {/* Social Login */}
-
-    <div className="mb-6 grid grid-cols-2 gap-3">
-      <div className="flex min-w-0 items-center justify-center overflow-hidden">
-        <GoogleSignInButton text="signin_with" />
-      </div>
-    </div>
-
-    {/* Divider */}
-
-    <div className="mb-6 flex items-center gap-3">
-      <div className="h-px flex-1 bg-slate-200" />
-
-      <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
-        or
-      </span>
-
-      <div className="h-px flex-1 bg-slate-200" />
-    </div>
-
-    <form
-      onSubmit={handleSignIn}
-      className="space-y-5"
-    >
-      {/* Email */}
-
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-slate-700">
-          Email Address
-        </label>
-
-        <Input
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            setEmailError("");
-            setLoginError("");
-          }}
-        />
-
-        {emailError && (
-          <p className="text-sm text-red-500">
-            {emailError}
-          </p>
-        )}
+        <p className="mt-2 text-sm text-slate-500">
+          Sign in to continue your journey.
+        </p>
       </div>
 
-      {/* Password */}
+      {/* Social Login */}
 
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-slate-700">
-          Password
-        </label>
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <div className="flex min-w-0 items-center justify-center overflow-hidden">
+          <GoogleSignInButton text="signin_with" />
+        </div>
+      </div>
 
-        <div className="relative">
+      {/* Divider */}
+
+      <div className="mb-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200" />
+
+        <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          or
+        </span>
+
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      <form
+        onSubmit={handleSignIn}
+        className="space-y-5"
+      >
+        {/* Email */}
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700">
+            Email Address
+          </label>
+
           <Input
-            type={
-              showPassword ? "text" : "password"
-            }
-            placeholder="Enter your password"
-            value={password}
+            type="email"
+            placeholder="Enter your email"
+            value={email}
             onChange={(event) => {
-              setPassword(event.target.value);
-              setPasswordError("");
+              setEmail(event.target.value);
+              setEmailError("");
               setLoginError("");
             }}
           />
 
-          <button
-            type="button"
-            onClick={() =>
-              setShowPassword(
-                (previous) => !previous
-              )
-            }
-            className="
+          {emailError && (
+            <p className="text-sm text-red-500">
+              {emailError}
+            </p>
+          )}
+        </div>
+
+        {/* Password */}
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700">
+            Password
+          </label>
+
+          <div className="relative">
+            <Input
+              type={
+                showPassword ? "text" : "password"
+              }
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setPasswordError("");
+                setLoginError("");
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowPassword(
+                  (previous) => !previous
+                )
+              }
+              className="
                 absolute
                 right-4
                 top-1/2
@@ -200,57 +204,57 @@ return (
                 transition
                 hover:text-cyan-600
               "
-          >
-            {showPassword ? "Hide" : "Show"}
-          </button>
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {passwordError && (
+            <p className="text-sm text-red-500">
+              {passwordError}
+            </p>
+          )}
         </div>
 
-        {passwordError && (
-          <p className="text-sm text-red-500">
-            {passwordError}
-          </p>
+        {/* Login Error */}
+
+        {loginError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-600">
+              {loginError}
+            </p>
+          </div>
         )}
-      </div>
 
-      {/* Login Error */}
+        {/* Remember Me / Forgot Password */}
 
-      {loginError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-sm font-medium text-red-600">
-            {loginError}
-          </p>
-        </div>
-      )}
-
-      {/* Remember Me / Forgot Password */}
-
-      <div className="flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(event) =>
-              setRememberMe(
-                event.target.checked
-              )
-            }
-            className="
+        <div className="flex items-center justify-between">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) =>
+                setRememberMe(
+                  event.target.checked
+                )
+              }
+              className="
                 h-4
                 w-4
                 rounded
                 border-slate-300
                 accent-cyan-500
               "
-          />
+            />
 
-          <span className="text-sm text-slate-500">
-            Remember me
-          </span>
-        </label>
+            <span className="text-sm text-slate-500">
+              Remember me
+            </span>
+          </label>
 
-        <button
-          type="button"
-          className="
+          <button
+            type="button"
+            className="
               text-sm
               font-medium
               text-cyan-600
@@ -258,17 +262,17 @@ return (
               hover:text-cyan-700
               hover:underline
             "
-        >
-          Forgot password?
-        </button>
-      </div>
+          >
+            Forgot password?
+          </button>
+        </div>
 
-      {/* Sign In */}
+        {/* Sign In */}
 
-      <Button
-        type="submit"
-        disabled={isLoading}
-        className="
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="
             h-12
             w-full
             rounded-xl
@@ -283,42 +287,42 @@ return (
             disabled:cursor-not-allowed
             disabled:opacity-60
           "
-      >
-        {isLoading
-          ? "Signing In..."
-          : "Sign In"}
-      </Button>
+        >
+          {isLoading
+            ? "Signing In..."
+            : "Sign In"}
+        </Button>
 
-      {/* Sign Up */}
+        {/* Sign Up */}
 
-      <div className="pt-2 text-center">
-        <p className="text-sm text-slate-500">
-          Don't have an account?{" "}
+        <div className="pt-2 text-center">
+          <p className="text-sm text-slate-500">
+            Don't have an account?{" "}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (switchToRegister) {
-                switchToRegister();
-              } else {
-                navigate("/register");
-              }
-            }}
-            className="
+            <button
+              type="button"
+              onClick={() => {
+                if (switchToRegister) {
+                  switchToRegister();
+                } else {
+                  navigate("/register");
+                }
+              }}
+              className="
                 font-semibold
                 text-cyan-600
                 transition
                 hover:text-cyan-700
                 hover:underline
               "
-          >
-            Sign Up
-          </button>
-        </p>
-      </div>
-    </form>
-  </AuthLayout>
-);
+            >
+              Sign Up
+            </button>
+          </p>
+        </div>
+      </form>
+    </AuthLayout>
+  );
 }
 
 

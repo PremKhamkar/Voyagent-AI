@@ -65,7 +65,11 @@ function Hero() {
                 {/* Start Planning */}
 
                 <Link
-                  to="/register"
+                  to={
+                    localStorage.getItem("voyagent_token")
+                      ? "/planner"
+                      : "/register"
+                  }
                   className="
                     inline-flex
                     h-14

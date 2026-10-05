@@ -12,13 +12,6 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import SavedTripDetails from "../pages/SavedTripDetails/SavedTripDetails";
 
 function PublicRoute({ children }) {
-  const isLoggedIn =
-    localStorage.getItem("isLoggedIn") === "true";
-
-  if (isLoggedIn) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return children;
 }
 

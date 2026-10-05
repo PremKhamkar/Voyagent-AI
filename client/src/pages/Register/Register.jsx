@@ -148,6 +148,7 @@ function Register({
       localStorage.setItem("userName", data.user.name);
       localStorage.setItem("userEmail", data.user.email);
       localStorage.setItem("voyagent_token", data.access_token);
+      window.dispatchEvent(new Event("voyagent-auth-change"));
 
       setIsLoading(false);
 

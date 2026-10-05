@@ -3,6 +3,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import API_BASE_URL from "../../constants/api";
+
+// Same limit the server enforces on a chat message.
+const MAX_MESSAGE_LENGTH = 1000;
+
+// A chat request that never answers must not leave the assistant
+// waiting forever. Generous, because rewriting a whole itinerary can
+// take a while (and the server retries on AI rate limits).
+const CHAT_TIMEOUT_MS = 150000;
+
+const TRIP_GREETING =
+  "Hi! 👋 I'm your Voyagent AI Trip Assistant. Tell me what you'd like to change or know about your current trip.";
+
+const GENERAL_GREETING =
+  "Hi! 👋 I'm your Voyagent AI assistant. Ask me about destinations, trip planning, weather considerations, or how Voyagent works.";
+
 function prepareChatContext(value, maxLength) {
   if (value === null || value === undefined) {
     return "";
@@ -32,14 +48,20 @@ function TripAssistant({
   accommodationPlan,
   onItineraryUpdate,
 }) {
+  // Trip mode: opened from the Planner with a generated trip, can
+  // modify the itinerary. General mode: no trip props, answers general
+  // travel questions only.
+  const hasTripContext = Boolean(trip && itinerary);
+
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
     {
       id: 1,
       role: "assistant",
-      content:
-        "Hi! 👋 I'm your Voyagent AI Trip Assistant. Tell me what you'd like to change or know about your current trip.",
+      content: hasTripContext
+        ? TRIP_GREETING
+        : GENERAL_GREETING,
     },
   ]);
   const [loading, setLoading] = useState(false);
@@ -59,10 +81,6 @@ function TripAssistant({
       return;
     }
 
-    if (!trip || !itinerary) {
-      return;
-    }
-
     const userMessage = {
       id: Date.now(),
       role: "user",
@@ -77,17 +95,28 @@ function TripAssistant({
     setMessage("");
     setLoading(true);
 
+    const controller = new AbortController();
+
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      CHAT_TIMEOUT_MS
+    );
+
     try {
-      const chatTrip = {
-        sourceCity: trip.sourceCity,
-        destination: trip.destination,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        budget: trip.budget,
-        travelers: trip.travelers,
-        travelType: trip.travelType,
-        preferences: trip.preferences || [],
-      };
+      // General mode has no trip: send an empty one, and the server
+      // answers as a general travel assistant.
+      const chatTrip = hasTripContext
+        ? {
+            sourceCity: trip.sourceCity,
+            destination: trip.destination,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            budget: trip.budget,
+            travelers: trip.travelers,
+            travelType: trip.travelType,
+            preferences: trip.preferences || [],
+          }
+        : {};
 
       const chatItinerary = prepareChatContext(
         itinerary,
@@ -115,9 +144,10 @@ function TripAssistant({
       );
 
       const response = await fetch(
-        "http://127.0.0.1:8000/chat",
+        `${API_BASE_URL}/chat`,
         {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
           },
@@ -155,7 +185,11 @@ function TripAssistant({
         },
       ]);
 
+      // Only a trip-mode assistant can change an itinerary. General
+      // mode has no callback and no itinerary to update.
       if (
+        hasTripContext &&
+        typeof onItineraryUpdate === "function" &&
         data.type === "modification" &&
         data.updated_itinerary
       ) {
@@ -180,6 +214,7 @@ function TripAssistant({
         },
       ]);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -520,10 +555,12 @@ function TripAssistant({
                   onKeyDown={handleKeyDown}
                   disabled={loading}
                   rows={1}
+                  maxLength={MAX_MESSAGE_LENGTH}
+                  aria-label="Message to the AI assistant"
                   placeholder={
                     trip?.destination
                       ? "Ask me to modify your trip..."
-                      : "Generate a trip first..."
+                      : "Ask about destinations or trip planning..."
                   }
                   className="
                     max-h-24
@@ -546,9 +583,7 @@ function TripAssistant({
                   onClick={handleSend}
                   disabled={
                     loading ||
-                    !message.trim() ||
-                    !trip ||
-                    !itinerary
+                    !message.trim()
                   }
                   className="
                     flex
@@ -576,7 +611,9 @@ function TripAssistant({
               </div>
 
               <p className="mt-2 text-center text-[10px] text-slate-400">
-                AI can modify your current itinerary based on your request.
+                {hasTripContext
+                  ? "AI can modify your current itinerary based on your request."
+                  : "AI answers can be wrong. Check important details before you travel."}
               </p>
             </div>
 

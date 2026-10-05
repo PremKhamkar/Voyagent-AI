@@ -48,6 +48,7 @@ function ProtectedRoute({ children }) {
         localStorage.removeItem("userName");
         localStorage.removeItem("userEmail");
         localStorage.removeItem("voyagent_token");
+        window.dispatchEvent(new Event("voyagent-auth-change"));
 
         if (!isCancelled) setStatus("unauthorized");
       }
