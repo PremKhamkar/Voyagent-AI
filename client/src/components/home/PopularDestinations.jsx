@@ -1,118 +1,97 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import Button from "../ui/Button";
 import Container from "../ui/Container";
 import SectionTitle from "../ui/SectionTitle";
-import DestinationCard from "./DestinationCard";
+import DestinationHero from "./DestinationHero";
 import DESTINATIONS from "../../constants/destinations";
 
-const VISIBLE_COUNT = 3;
+// A new pick avoids the current destination and the last few shown, so it
+// never repeats immediately and rarely bounces A -> B -> A.
+const RECENT_WINDOW = 5;
+const CROSSFADE_MS = 800;
 
-function setKey(destinations) {
-  return destinations
-    .map((destination) => destination.id)
-    .sort()
-    .join("|");
-}
-
-// Picks VISIBLE_COUNT distinct destinations at random (Fisher-Yates).
-// When a previous set is given, it tries to return a different set.
-function pickDestinations(previous = []) {
-  const previousKey = previous.length ? setKey(previous) : null;
-  let picked = [];
-
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const pool = [...DESTINATIONS];
-
-    for (let i = pool.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-
-    picked = pool.slice(0, VISIBLE_COUNT);
-
-    if (setKey(picked) !== previousKey) {
-      break;
-    }
-  }
-
-  return picked;
+function pickRandom(excludeIds = []) {
+  const pool = DESTINATIONS.filter((d) => !excludeIds.includes(d.id));
+  const list = pool.length ? pool : DESTINATIONS;
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 function PopularDestinations() {
-  // Lazy initializer: the random pick happens once per page load and
-  // stays the same across normal re-renders.
-  const [destinations, setDestinations] = useState(() =>
-    pickDestinations()
+  // Lazy initializer: one random pick per page load.
+  const [current, setCurrent] = useState(() => pickRandom());
+  const [previous, setPrevious] = useState(null);
+  const [hasShuffled, setHasShuffled] = useState(false);
+
+  // Without IntersectionObserver (very old browsers) treat the section as
+  // always visible instead of never loading video.
+  const [inView, setInView] = useState(
+    () => typeof IntersectionObserver === "undefined"
   );
+  // Sticky: video loads once the section has come near the viewport, and
+  // from then on only plays/pauses with visibility (no re-download).
+  const [hasEntered, setHasEntered] = useState(inView);
+
+  const recent = useRef([current.id]);
+  const sectionRef = useRef(null);
+
+  useEffect(() => {
+    const node = sectionRef.current;
+
+    if (!node || typeof IntersectionObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(entry.isIntersecting);
+        if (entry.isIntersecting) {
+          setHasEntered(true);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  // Drop the outgoing image layer once the crossfade is done.
+  useEffect(() => {
+    if (!previous) return undefined;
+    const timer = setTimeout(() => setPrevious(null), CROSSFADE_MS);
+    return () => clearTimeout(timer);
+  }, [previous]);
 
   function handleShuffle() {
-    setDestinations(pickDestinations(destinations));
+    const next = pickRandom(recent.current);
+    recent.current = [...recent.current, next.id].slice(-RECENT_WINDOW);
+
+    setPrevious(current);
+    setCurrent(next);
+    setHasShuffled(true);
   }
 
   return (
-    <section id="destinations" className="relative overflow-hidden py-24">
-      {/* Mountain background */}
+    <section
+      id="destinations"
+      ref={sectionRef}
+      className="relative overflow-hidden bg-white py-24"
+    >
+      <Container>
+        <SectionTitle
+          title="Popular Destinations"
+          subtitle="A hand-picked mix of places to inspire your next trip. Shuffle for new ideas."
+        />
 
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage:
-          "url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=2000')",
-        }}
-      ></div>
-
-      {/* Light overlay */}
-
-
-
-      {/* Content */}
-
-      <div className="relative z-10">
-        <Container>
-          <SectionTitle
-            title="Popular Destinations"
-            subtitle="A hand-picked mix of places to inspire your next trip. Shuffle for new ideas."
-          />
-
-          {/* Cards */}
-
-          <div className="mt-12 lg:mt-20 lg:p-12">
-            <div
-              className="
-                mx-auto grid max-w-7xl grid-cols-1 gap-8
-                md:grid-cols-2 md:[&>:last-child]:col-span-2
-                lg:grid-cols-3 lg:gap-14 lg:[&>:last-child]:col-span-1
-              "
-            >
-              {destinations.map((destination) => (
-                <DestinationCard
-                  key={destination.id}
-                  image={destination.image}
-                  title={destination.title}
-                  country={destination.country}
-                  description={destination.description}
-                />
-              ))}
-            </div>
-
-            {/* Shuffle */}
-
-            <div className="mx-auto mt-12 w-full max-w-[220px]">
-              <Button
-                onClick={handleShuffle}
-                className="
-                  !h-12 !bg-white !text-cyan-700 hover:!bg-cyan-50
-                  focus-visible:outline-none focus-visible:ring-4
-                  focus-visible:ring-cyan-300
-                "
-              >
-                Shuffle destinations
-              </Button>
-            </div>
-          </div>
-        </Container>
-      </div>
+        <DestinationHero
+          destination={current}
+          previous={previous}
+          loadVideo={hasEntered}
+          isVisible={inView}
+          animate={hasShuffled}
+          onShuffle={handleShuffle}
+        />
+      </Container>
     </section>
   );
 }
