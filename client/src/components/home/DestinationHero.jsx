@@ -5,6 +5,7 @@ import Button from "../ui/Button";
 import DESTINATION_VIDEOS from "../../constants/destinationVideos";
 import ROUTES from "../../constants/routes";
 import DESTINATION_GUIDES from "../../constants/destinationGuides";
+import VERIFIED_DESTINATION_GUIDES from "../../constants/verifiedDestinationGuides";
 
 const VIDEO_TIMEOUT_MS = 10000;
 const IMAGE_REVEAL_TIMEOUT_MS = 3000;
@@ -296,7 +297,10 @@ function DestinationHero({
                             </Link>
                             {DESTINATION_GUIDES[destination.id] && (
                                 <a
-                                    href={DESTINATION_GUIDES[destination.id]}
+                                    href={
+                                        VERIFIED_DESTINATION_GUIDES[destination.id] ||
+                                        DESTINATION_GUIDES[destination.id]
+                                    }
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="
