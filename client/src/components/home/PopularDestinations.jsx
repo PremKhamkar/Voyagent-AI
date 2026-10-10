@@ -5,8 +5,7 @@ import SectionTitle from "../ui/SectionTitle";
 import DestinationHero from "./DestinationHero";
 import DESTINATIONS from "../../constants/destinations";
 
-// A new pick avoids the current destination and the last few shown, so it
-// never repeats immediately and rarely bounces A -> B -> A.
+// A new pick avoids the current destination and the last few shown.
 const RECENT_WINDOW = 5;
 const CROSSFADE_MS = 800;
 
@@ -17,18 +16,13 @@ function pickRandom(excludeIds = []) {
 }
 
 function PopularDestinations() {
-  // Lazy initializer: one random pick per page load.
   const [current, setCurrent] = useState(() => pickRandom());
   const [previous, setPrevious] = useState(null);
   const [hasShuffled, setHasShuffled] = useState(false);
 
-  // Without IntersectionObserver (very old browsers) treat the section as
-  // always visible instead of never loading video.
   const [inView, setInView] = useState(
     () => typeof IntersectionObserver === "undefined"
   );
-  // Sticky: video loads once the section has come near the viewport, and
-  // from then on only plays/pauses with visibility (no re-download).
   const [hasEntered, setHasEntered] = useState(inView);
 
   const recent = useRef([current.id]);
@@ -55,20 +49,38 @@ function PopularDestinations() {
     return () => observer.disconnect();
   }, []);
 
-  // Drop the outgoing image layer once the crossfade is done.
   useEffect(() => {
     if (!previous) return undefined;
     const timer = setTimeout(() => setPrevious(null), CROSSFADE_MS);
     return () => clearTimeout(timer);
   }, [previous]);
 
-  function handleShuffle() {
-    const next = pickRandom(recent.current);
+  function showDestination(next) {
+    if (!next || next.id === current.id) return;
+
     recent.current = [...recent.current, next.id].slice(-RECENT_WINDOW);
 
     setPrevious(current);
     setCurrent(next);
     setHasShuffled(true);
+  }
+
+  function handleShuffle() {
+    showDestination(pickRandom(recent.current));
+  }
+
+  function handleNavigate(direction) {
+    const currentIndex = DESTINATIONS.findIndex(
+      (destination) => destination.id === current.id
+    );
+
+    if (currentIndex === -1 || DESTINATIONS.length < 2) return;
+
+    const nextIndex =
+      (currentIndex + direction + DESTINATIONS.length) %
+      DESTINATIONS.length;
+
+    showDestination(DESTINATIONS[nextIndex]);
   }
 
   return (
@@ -80,7 +92,7 @@ function PopularDestinations() {
       <Container>
         <SectionTitle
           title="Popular Destinations"
-          subtitle="A hand-picked mix of places to inspire your next trip. Shuffle for new ideas."
+          subtitle="A hand-picked mix of places to inspire your next trip. Use the arrows to browse or shuffle for a surprise."
         />
 
         <DestinationHero
@@ -90,6 +102,8 @@ function PopularDestinations() {
           isVisible={inView}
           animate={hasShuffled}
           onShuffle={handleShuffle}
+          onPrevious={() => handleNavigate(-1)}
+          onNext={() => handleNavigate(1)}
         />
       </Container>
     </section>

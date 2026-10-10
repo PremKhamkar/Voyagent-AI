@@ -10,8 +10,9 @@ import VERIFIED_DESTINATION_GUIDES from "../../constants/verifiedDestinationGuid
 const VIDEO_TIMEOUT_MS = 10000;
 const IMAGE_REVEAL_TIMEOUT_MS = 3000;
 const UHD_MIN_WIDTH = 1280;
+const SWIPE_THRESHOLD_PX = 60;
 
-// Returns the best video URL for this device, or null for image-only.
+// Returns the best background-video URL for this device, or null for image-only.
 function pickVideoSource(entry) {
     if (!entry || typeof window === "undefined") return null;
 
@@ -33,6 +34,39 @@ function pickVideoSource(entry) {
     return entry.hd || null;
 }
 
+// Extracts a video ID only from a recognized YouTube URL.
+function getYouTubeVideoId(url) {
+    if (!url) return null;
+
+    try {
+        const parsed = new URL(url);
+
+        if (parsed.hostname === "youtu.be") {
+            return parsed.pathname.split("/").filter(Boolean)[0] || null;
+        }
+
+        const isYouTubeHost =
+            parsed.hostname === "youtube.com" ||
+            parsed.hostname.endsWith(".youtube.com") ||
+            parsed.hostname === "www.youtube-nocookie.com";
+
+        if (!isYouTubeHost) return null;
+
+        if (parsed.pathname === "/watch") {
+            return parsed.searchParams.get("v");
+        }
+
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(parts[0])) {
+            return parts[1] || null;
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
 // Fades its children in right after mount.
 function FadeIn({ className = "", children }) {
     const [entered, setEntered] = useState(false);
@@ -45,10 +79,10 @@ function FadeIn({ className = "", children }) {
     return (
         <div
             className={`
-        transition-all duration-500 motion-reduce:transition-none
-        ${entered ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}
-        ${className}
-      `}
+                transition-all duration-500 motion-reduce:transition-none
+                ${entered ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}
+                ${className}
+            `}
         >
             {children}
         </div>
@@ -58,9 +92,8 @@ function FadeIn({ className = "", children }) {
 function BackgroundVideo({ src, poster, visible, onPlaying, onFail }) {
     const ref = useRef(null);
 
-    // Setup/cleanup for the lifetime of this source. The src is re-applied
-    // on setup because cleanup removes it (StrictMode runs cleanup then setup
-    // again in development, and React will not restore a removed attribute).
+    // Re-apply the source on setup because cleanup removes it. This also
+    // supports React StrictMode's development cleanup/setup cycle.
     useEffect(() => {
         const video = ref.current;
         if (!video) return undefined;
@@ -68,9 +101,11 @@ function BackgroundVideo({ src, poster, visible, onPlaying, onFail }) {
         if (video.getAttribute("src") !== src) {
             video.setAttribute("src", src);
         }
-        video.muted = true; // React's muted attribute is unreliable for autoplay
 
-        // Stop playback and release the network connection.
+        // React's muted attribute can be unreliable for autoplay.
+        video.muted = true;
+
+        // Stop playback and release the network connection when unmounted.
         return () => {
             video.pause();
             video.removeAttribute("src");
@@ -85,7 +120,7 @@ function BackgroundVideo({ src, poster, visible, onPlaying, onFail }) {
 
         if (visible) {
             const attempt = video.play();
-            if (attempt?.catch) attempt.catch(() => { }); // autoplay blocked: poster stays
+            if (attempt?.catch) attempt.catch(() => {});
         } else {
             video.pause();
         }
@@ -111,9 +146,7 @@ function BackgroundVideo({ src, poster, visible, onPlaying, onFail }) {
 }
 
 // One destination's visuals. The image is always the base layer; the video
-// (if any) fades in on top once it is actually playing. A layer with
-// `fadeIn` waits for its image before fading in, so a shuffle never shows a
-// half-loaded picture.
+// fades in over it only after it actually starts playing.
 function MediaLayer({
     destination,
     loadVideo = false,
@@ -128,12 +161,15 @@ function MediaLayer({
 
     const source = useMemo(
         () =>
-            loadVideo ? pickVideoSource(DESTINATION_VIDEOS[destination.id]) : null,
+            loadVideo
+                ? pickVideoSource(DESTINATION_VIDEOS[destination.id])
+                : null,
         [loadVideo, destination.id]
     );
 
     useEffect(() => {
         if (!fadeIn) return undefined;
+
         const id = requestAnimationFrame(() => setEntered(true));
         return () => cancelAnimationFrame(id);
     }, [fadeIn]);
@@ -141,6 +177,7 @@ function MediaLayer({
     // Never leave the layer invisible if the image neither loads nor errors.
     useEffect(() => {
         if (imageReady) return undefined;
+
         const timer = setTimeout(
             () => setImageReady(true),
             IMAGE_REVEAL_TIMEOUT_MS
@@ -148,12 +185,12 @@ function MediaLayer({
         return () => clearTimeout(timer);
     }, [imageReady]);
 
-    // Give up on a video that never starts so nothing waits forever. The timer
-    // only runs while the section is visible (a paused video can't start).
+    // Give up on a background video that never starts so the image remains.
     useEffect(() => {
         if (!source || !isVisible || videoPlaying || videoFailed) {
             return undefined;
         }
+
         const timer = setTimeout(() => setVideoFailed(true), VIDEO_TIMEOUT_MS);
         return () => clearTimeout(timer);
     }, [source, isVisible, videoPlaying, videoFailed]);
@@ -163,10 +200,10 @@ function MediaLayer({
     return (
         <div
             className={`
-        absolute inset-0 transition-opacity duration-700
-        motion-reduce:transition-none
-        ${entered && imageReady ? "opacity-100" : "opacity-0"}
-      `}
+                absolute inset-0 transition-opacity duration-700
+                motion-reduce:transition-none
+                ${entered && imageReady ? "opacity-100" : "opacity-0"}
+            `}
         >
             {imageFailed ? (
                 <div
@@ -191,10 +228,10 @@ function MediaLayer({
             {showVideo && (
                 <div
                     className={`
-            absolute inset-0 transition-opacity duration-700
-            motion-reduce:transition-none
-            ${videoPlaying ? "opacity-100" : "opacity-0"}
-          `}
+                        absolute inset-0 transition-opacity duration-700
+                        motion-reduce:transition-none
+                        ${videoPlaying ? "opacity-100" : "opacity-0"}
+                    `}
                 >
                     <BackgroundVideo
                         src={source}
@@ -216,25 +253,70 @@ function DestinationHero({
     isVisible,
     animate,
     onShuffle,
+    onPrevious,
+    onNext,
 }) {
     const { title, country, description } = destination;
+    const touchStartX = useRef(null);
+    const [isGuidePlaying, setIsGuidePlaying] = useState(false);
+
+    // Prefer an individual video. Destinations without one keep the search link.
+    const guideUrl =
+        VERIFIED_DESTINATION_GUIDES[destination.id] ||
+        DESTINATION_GUIDES[destination.id];
+    const verifiedVideoId = getYouTubeVideoId(
+        VERIFIED_DESTINATION_GUIDES[destination.id]
+    );
+
+    // Stop the previous destination's guide when navigating to another card.
+    useEffect(() => {
+        setIsGuidePlaying(false);
+    }, [destination.id]);
+
+    function handleTouchStart(event) {
+        // Ignore multi-touch gestures.
+        if (event.touches.length === 1) {
+            touchStartX.current = event.touches[0].clientX;
+        }
+    }
+
+    function handleTouchEnd(event) {
+        if (touchStartX.current === null) return;
+
+        const deltaX =
+            event.changedTouches[0].clientX - touchStartX.current;
+        touchStartX.current = null;
+
+        // Ignore taps and short horizontal movements.
+        if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+
+        if (deltaX > 0) {
+            onPrevious?.();
+        } else {
+            onNext?.();
+        }
+    }
 
     return (
         <div className="w-full">
             <div
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
                 className="
-          relative isolate flex min-h-[540px] w-full items-end
-          overflow-hidden rounded-3xl bg-slate-900 shadow-2xl
-          sm:min-h-[500px] lg:min-h-[600px]
-        "
+                    relative isolate flex min-h-[540px] w-full items-end
+                    overflow-hidden rounded-3xl bg-slate-900 shadow-2xl
+                    sm:min-h-[500px] lg:min-h-[600px]
+                "
             >
-                {/* Outgoing destination: same key as when it was current, so React
-            keeps the already-painted layer instead of rebuilding it. It
-            receives no loadVideo, so its video unmounts (and stops) the
-            moment a shuffle happens. */}
-                {previous && <MediaLayer key={previous.id} destination={previous} />}
+                {/* Outgoing destination remains visible during the crossfade. */}
+                {previous && (
+                    <MediaLayer
+                        key={previous.id}
+                        destination={previous}
+                    />
+                )}
 
-                {/* Current destination: the only layer that can load a video. */}
+                {/* Only the current destination can load a background video. */}
                 <MediaLayer
                     key={destination.id}
                     destination={destination}
@@ -243,95 +325,195 @@ function DestinationHero({
                     fadeIn={animate}
                 />
 
-                {/* Readability overlay */}
+                {/* Readability overlay above the background, below controls. */}
                 <div
-                    className="
-            pointer-events-none absolute inset-0
-            bg-gradient-to-t from-black/80 via-black/30 to-black/10
-          "
+                    className={`
+                        pointer-events-none absolute inset-0 z-[1]
+                        bg-gradient-to-t from-black/80 via-black/30 to-black/10
+                        ${isGuidePlaying ? "opacity-0" : "opacity-100"}
+                    `}
                 />
 
-                {/* Content. The live region is stable; only its content remounts. */}
-                <div aria-live="polite" className="relative z-10 w-full">
-                    <FadeIn key={destination.id} className="p-6 sm:p-10 lg:p-14">
-                        <div className="max-w-2xl">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-                                Travel Inspiration
-                            </p>
+                {/* The individual YouTube video plays inside this same card. */}
+                {isGuidePlaying && verifiedVideoId && (
+                    <div className="absolute inset-0 z-30 bg-black">
+                        <iframe
+                            key={verifiedVideoId}
+                            src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(
+                                verifiedVideoId
+                            )}?autoplay=1&rel=0`}
+                            title={`${title} travel guide`}
+                            className="h-full w-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                        />
 
-                            <h3 className="mt-3 break-words text-4xl font-bold uppercase tracking-wide text-white sm:text-5xl lg:text-6xl">
-                                {title}
-                            </h3>
+                        <button
+                            type="button"
+                            onClick={() => setIsGuidePlaying(false)}
+                            aria-label="Close travel video"
+                            className="
+                                absolute right-4 top-4 z-40 flex h-11 w-11
+                                items-center justify-center rounded-full
+                                border border-white/30 bg-black/70 text-2xl
+                                text-white shadow-lg backdrop-blur
+                                transition hover:bg-black
+                                focus-visible:outline-none focus-visible:ring-4
+                                focus-visible:ring-cyan-300
+                            "
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
 
-                            {country && (
-                                <p className="mt-1 text-base font-medium text-white/80">
-                                    {country}
+                {/* Card navigation controls. */}
+                {!isGuidePlaying && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={onPrevious}
+                            aria-label="Previous destination"
+                            className="
+                                absolute left-3 top-1/2 z-20 flex h-11 w-11
+                                -translate-y-1/2 items-center justify-center
+                                rounded-full border border-white/40 bg-black/40
+                                text-3xl leading-none text-white shadow-lg
+                                backdrop-blur-md transition hover:bg-black/70
+                                focus-visible:outline-none focus-visible:ring-4
+                                focus-visible:ring-cyan-300
+                                sm:left-5 sm:h-12 sm:w-12
+                            "
+                        >
+                            ‹
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={onNext}
+                            aria-label="Next destination"
+                            className="
+                                absolute right-3 top-1/2 z-20 flex h-11 w-11
+                                -translate-y-1/2 items-center justify-center
+                                rounded-full border border-white/40 bg-black/40
+                                text-3xl leading-none text-white shadow-lg
+                                backdrop-blur-md transition hover:bg-black/70
+                                focus-visible:outline-none focus-visible:ring-4
+                                focus-visible:ring-cyan-300
+                                sm:right-5 sm:h-12 sm:w-12
+                            "
+                        >
+                            ›
+                        </button>
+                    </>
+                )}
+
+                {/* Content remains hidden while the video player is open. */}
+                {!isGuidePlaying && (
+                    <div
+                        aria-live="polite"
+                        className="relative z-10 w-full"
+                    >
+                        <FadeIn
+                            key={destination.id}
+                            className="p-6 sm:p-10 lg:p-14"
+                        >
+                            <div className="max-w-2xl">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                                    Travel Inspiration
                                 </p>
-                            )}
 
-                            <p className="mt-4 text-lg font-semibold text-white sm:text-xl">
-                                Top 10 Places to Visit in {title}
-                            </p>
+                                <h3 className="mt-3 break-words text-4xl font-bold uppercase tracking-wide text-white sm:text-5xl lg:text-6xl">
+                                    {title}
+                                </h3>
 
-                            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80 sm:text-base">
-                                {description}
-                            </p>
+                                {country && (
+                                    <p className="mt-1 text-base font-medium text-white/80">
+                                        {country}
+                                    </p>
+                                )}
 
-                            {/* Unchanged behavior: the planner does not take a destination
-                  yet, and logged-out visitors are sent to login by the
-                  planner route's existing ProtectedRoute. */}
-                            <Link
-                                to={ROUTES.PLANNER}
-                                className="
-                  mt-6 flex h-12 w-full items-center justify-center
-                  rounded-2xl bg-cyan-500 px-8
-                  font-semibold text-white shadow-lg
-                  transition-all duration-300
-                  hover:-translate-y-0.5 hover:bg-cyan-600
-                  focus-visible:outline-none focus-visible:ring-4
-                  focus-visible:ring-cyan-300
-                  sm:inline-flex sm:w-auto
-                "
-                            >
-                                Start planning
-                            </Link>
-                            {DESTINATION_GUIDES[destination.id] && (
-                                <a
-                                    href={
-                                        VERIFIED_DESTINATION_GUIDES[destination.id] ||
-                                        DESTINATION_GUIDES[destination.id]
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <p className="mt-4 text-lg font-semibold text-white sm:text-xl">
+                                    Top 10 Places to Visit in {title}
+                                </p>
+
+                                <p className="mt-2 max-w-xl text-sm leading-6 text-white/80 sm:text-base">
+                                    {description}
+                                </p>
+
+                                {/* Preserve the existing planner route behavior. */}
+                                <Link
+                                    to={ROUTES.PLANNER}
                                     className="
-      mt-3 flex h-12 w-full items-center justify-center gap-2
-      rounded-2xl border border-white/40 bg-white/10 px-8
-      font-semibold text-white backdrop-blur-md
-      transition-all duration-300
-      hover:-translate-y-0.5 hover:bg-white/20
-      focus-visible:outline-none focus-visible:ring-4
-      focus-visible:ring-cyan-300
-      sm:mt-3 sm:inline-flex sm:w-auto sm:ml-3
-    "
+                                        mt-6 flex h-12 w-full items-center justify-center
+                                        rounded-2xl bg-cyan-500 px-8 font-semibold
+                                        text-white shadow-lg transition-all duration-300
+                                        hover:-translate-y-0.5 hover:bg-cyan-600
+                                        focus-visible:outline-none focus-visible:ring-4
+                                        focus-visible:ring-cyan-300 sm:inline-flex sm:w-auto
+                                    "
                                 >
-                                    <span aria-hidden="true">▶</span>
-                                    Watch Top 10 Places
-                                </a>
-                            )}
-                        </div>
-                    </FadeIn>
-                </div>
+                                    Start planning
+                                </Link>
+
+                                {guideUrl && (
+                                    verifiedVideoId ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsGuidePlaying(true)}
+                                            className="
+                                                mt-3 flex h-12 w-full items-center
+                                                justify-center gap-2 rounded-2xl
+                                                border border-white/40 bg-white/10 px-8
+                                                font-semibold text-white backdrop-blur-md
+                                                transition-all duration-300
+                                                hover:-translate-y-0.5 hover:bg-white/20
+                                                focus-visible:outline-none focus-visible:ring-4
+                                                focus-visible:ring-cyan-300
+                                                sm:ml-3 sm:mt-3 sm:inline-flex sm:w-auto
+                                            "
+                                        >
+                                            <span aria-hidden="true">▶</span>
+                                            Watch Travel Video
+                                        </button>
+                                    ) : (
+                                        <a
+                                            href={guideUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="
+                                                mt-3 flex h-12 w-full items-center
+                                                justify-center gap-2 rounded-2xl
+                                                border border-white/40 bg-white/10 px-8
+                                                font-semibold text-white backdrop-blur-md
+                                                transition-all duration-300
+                                                hover:-translate-y-0.5 hover:bg-white/20
+                                                focus-visible:outline-none focus-visible:ring-4
+                                                focus-visible:ring-cyan-300
+                                                sm:ml-3 sm:mt-3 sm:inline-flex sm:w-auto
+                                            "
+                                        >
+                                            <span aria-hidden="true">▶</span>
+                                            Watch Top 10 Places
+                                        </a>
+                                    )
+                                )}
+                            </div>
+                        </FadeIn>
+                    </div>
+                )}
             </div>
 
-            {/* Shuffle control */}
+            {/* Keep the existing random shuffle control. */}
             <div className="mx-auto mt-8 w-full max-w-[260px]">
                 <Button
                     onClick={onShuffle}
                     className="
-            !h-12
-            focus-visible:outline-none focus-visible:ring-4
-            focus-visible:ring-cyan-300
-          "
+                        !h-12
+                        focus-visible:outline-none focus-visible:ring-4
+                        focus-visible:ring-cyan-300
+                    "
                 >
                     Shuffle Destination
                 </Button>
