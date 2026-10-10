@@ -1,5 +1,9 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import ItineraryCard from "../../components/cards/ItineraryCard";
+import BudgetCard from "../../components/cards/BudgetCard";
+import AttractionCard from "../../components/cards/AttractionCard";
+import AccommodationCard from "../../components/cards/AccommodationCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -465,21 +469,17 @@ function SavedTripDetails() {
 
           </div>
 
-          {trip.itinerary ? (
-            <div className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-li:text-slate-600">
 
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-              >
-                {trip.itinerary}
-              </ReactMarkdown>
+          <div className="w-full min-w-0 max-w-full overflow-hidden">
+            {trip.itinerary ? (
+              <ItineraryCard content={trip.itinerary} />
+            ) : (
+              <p className="text-slate-500">
+                No itinerary information was saved.
+              </p>
+            )}
+          </div>
 
-            </div>
-          ) : (
-            <p className="text-slate-500">
-              No itinerary information was saved.
-            </p>
-          )}
 
         </section>
 
@@ -980,7 +980,7 @@ function SavedTripDetails() {
             INFORMATION GRID
         ====================================================== */}
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="mt-6 grid w-full min-w-0 grid-cols-1 gap-6">
 
           {/* Budget */}
 
@@ -1007,14 +1007,8 @@ function SavedTripDetails() {
             </div>
 
             {trip.budgetPlan ? (
-              <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-li:text-slate-600">
-
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                >
-                  {trip.budgetPlan}
-                </ReactMarkdown>
-
+              <div className="w-full min-w-0 max-w-full overflow-hidden">
+                <BudgetCard content={trip.budgetPlan || ""} />
               </div>
             ) : (
               <p className="text-sm text-slate-500">
@@ -1049,13 +1043,9 @@ function SavedTripDetails() {
             </div>
 
             {trip.destinationPlan ? (
-              <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-li:text-slate-600">
+              <div className="w-full min-w-0 max-w-full overflow-hidden">
 
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                >
-                  {trip.destinationPlan}
-                </ReactMarkdown>
+                <AttractionCard content={trip.destinationPlan || ""} />
 
               </div>
             ) : (
@@ -1092,13 +1082,9 @@ function SavedTripDetails() {
             </div>
 
             {trip.accommodationPlan ? (
-              <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-li:text-slate-600">
+              <div className="w-full min-w-0 max-w-full overflow-hidden">
 
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                >
-                  {trip.accommodationPlan}
-                </ReactMarkdown>
+                <AccommodationCard content={trip.accommodationPlan || ""} />
 
               </div>
             ) : (
