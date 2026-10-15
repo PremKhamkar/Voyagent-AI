@@ -1,4 +1,5 @@
 import json
+import re
 
 from app.services.groq_service import generate_ai_response
 
@@ -273,7 +274,17 @@ MODIFICATION RULES
 - Use approximate costs when necessary.
 - Generate every date from the start date through the end date.
 - Never remove a required travel day.
-- If modifying only one day, keep the other days as unchanged as reasonably possible.
+- The CURRENT ITINERARY is the source of truth for all existing activities and schedules.
+- Always return the FULL, COMPLETE itinerary in updated_itinerary, from the first travel date through the last travel date.
+- NEVER use placeholders such as "...(unchanged)...", "...", "same as before", "rest unchanged", or "no changes".
+- NEVER omit a day, morning, afternoon, evening, activity, meal, transport detail, estimated cost, or travel tip merely because it was not modified.
+- When the user requests a change to only one day or time slot, modify only that requested section.
+- Copy all unaffected sections from the CURRENT ITINERARY, preserving their original content as closely as possible.
+- Add " (Modified)" to the heading of each section that was actually changed. For example: "### Morning (Modified)".
+- Do not add "(Modified)" to unaffected headings.
+- If the request changes only Day 4 Morning, preserve Day 4 Afternoon and Evening, along with every other day's complete schedule.
+- Before responding, verify that every original travel date is represented and all unaffected sections retain their content.
+- If the request asks for a complete regeneration, generate a complete new itinerary instead.
 - If the user requests a complete regeneration, regenerate the complete itinerary.
 
 WEATHER SAFETY
@@ -313,12 +324,49 @@ Do not add text before or after the JSON.
 
     response = generate_ai_response(prompt, max_completion_tokens=4000)
 
+
     try:
         parsed_response = json.loads(response)
 
-        return parsed_response
+        if not isinstance(parsed_response, dict):
+            raise ValueError("Chatbot response must be a JSON object.")
 
-    except json.JSONDecodeError:
+        response_type = parsed_response.get("type")
+        reply = parsed_response.get("reply", "")
+        updated_itinerary = parsed_response.get("updated_itinerary", "")
+
+        if response_type == "modification":
+            if not isinstance(updated_itinerary, str) or not updated_itinerary.strip():
+                return {
+                    "type": "answer",
+                    "reply": "I couldn't safely update the itinerary. Your existing itinerary has been kept unchanged. Please try the modification again.",
+                    "updated_itinerary": "",
+                }
+
+            placeholder_pattern = re.compile(
+                r"\.\.\.\s*\(?\s*unchanged\s*\)?\s*\.{0,3}"
+                r"|same as before"
+                r"|rest unchanged"
+                r"|no changes"
+                r"|unchanged sections omitted",
+                re.IGNORECASE,
+            )
+
+            if placeholder_pattern.search(updated_itinerary):
+                return {
+                    "type": "answer",
+                    "reply": "The itinerary update was incomplete, so I kept your existing itinerary unchanged. Please try the modification again.",
+                    "updated_itinerary": "",
+                }
+
+        return {
+            "type": response_type if response_type in {"answer", "modification"} else "answer",
+            "reply": reply if isinstance(reply, str) else "",
+            "updated_itinerary": updated_itinerary if response_type == "modification" else "",
+        }
+
+    except (json.JSONDecodeError, ValueError):
+
         print("Chatbot returned invalid JSON:")
         print(response)
 
