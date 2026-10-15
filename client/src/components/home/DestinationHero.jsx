@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import Button from "../ui/Button";
 import DESTINATION_VIDEOS from "../../constants/destinationVideos";
 import ROUTES from "../../constants/routes";
-import DESTINATION_GUIDES from "../../constants/destinationGuides";
 import VERIFIED_DESTINATION_GUIDES from "../../constants/verifiedDestinationGuides";
 
 const VIDEO_TIMEOUT_MS = 10000;
@@ -261,9 +260,6 @@ function DestinationHero({
     const [isGuidePlaying, setIsGuidePlaying] = useState(false);
 
     // Prefer an individual video. Destinations without one keep the search link.
-    const guideUrl =
-        VERIFIED_DESTINATION_GUIDES[destination.id] ||
-        DESTINATION_GUIDES[destination.id];
     const verifiedVideoId = getYouTubeVideoId(
         VERIFIED_DESTINATION_GUIDES[destination.id]
     );
@@ -457,48 +453,33 @@ function DestinationHero({
                                     Start planning
                                 </Link>
 
-                                {guideUrl && (
-                                    verifiedVideoId ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsGuidePlaying(true)}
-                                            className="
-                                                mt-3 flex h-12 w-full items-center
-                                                justify-center gap-2 rounded-2xl
-                                                border border-white/40 bg-white/10 px-8
-                                                font-semibold text-white backdrop-blur-md
-                                                transition-all duration-300
-                                                hover:-translate-y-0.5 hover:bg-white/20
-                                                focus-visible:outline-none focus-visible:ring-4
-                                                focus-visible:ring-cyan-300
-                                                sm:ml-3 sm:mt-3 sm:inline-flex sm:w-auto
-                                            "
-                                        >
-                                            <span aria-hidden="true">▶</span>
-                                            Watch Travel Video
-                                        </button>
-                                    ) : (
-                                        <a
-                                            href={guideUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="
-                                                mt-3 flex h-12 w-full items-center
-                                                justify-center gap-2 rounded-2xl
-                                                border border-white/40 bg-white/10 px-8
-                                                font-semibold text-white backdrop-blur-md
-                                                transition-all duration-300
-                                                hover:-translate-y-0.5 hover:bg-white/20
-                                                focus-visible:outline-none focus-visible:ring-4
-                                                focus-visible:ring-cyan-300
-                                                sm:ml-3 sm:mt-3 sm:inline-flex sm:w-auto
-                                            "
-                                        >
-                                            <span aria-hidden="true">▶</span>
-                                            Watch Top 10 Places
-                                        </a>
-                                    )
+
+                                {verifiedVideoId ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsGuidePlaying(true)}
+                                        className="
+            mt-3 flex h-12 w-full items-center justify-center gap-2
+            rounded-2xl border border-white/40 bg-white/10 px-8
+            font-semibold text-white backdrop-blur-md
+            transition-all duration-300 hover:-translate-y-0.5
+            hover:bg-white/20 focus-visible:outline-none
+            focus-visible:ring-4 focus-visible:ring-cyan-300
+            sm:ml-3 sm:mt-3 sm:inline-flex sm:w-auto
+        "
+                                    >
+                                        <span aria-hidden="true">▶</span>
+                                        Watch Travel Video
+                                    </button>
+                                ) : (
+                                    <p
+                                        role="status"
+                                        className="mt-3 text-sm font-medium text-white/80 sm:ml-3 sm:inline-block"
+                                    >
+                                        Travel video coming soon for {title}.
+                                    </p>
                                 )}
+
                             </div>
                         </FadeIn>
                     </div>
