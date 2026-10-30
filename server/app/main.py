@@ -1,10 +1,14 @@
-﻿from app.db.database import init_db
+﻿from dotenv import load_dotenv
+
+load_dotenv()
+
+from app.db.database import init_db
 from app.graph.travel_graph import travel_graph
 from app.models.chatbot import ChatRequest
 from app.models.trip import TripRequest
 from app.routers.auth import router as auth_router
-from app.routers.trips import router as trips_router
 from app.routers.feedback import router as feedback_router
+from app.routers.trips import router as trips_router
 from app.services.chatbot_service import generate_chatbot_response
 from app.services.location_service import (
     get_children,
@@ -14,9 +18,9 @@ from app.services.location_service import (
 from app.services.places_service import (
     _redact,
     get_attractions_for_destination,
+    get_flight_route_for_cities,
     get_hotels_for_destination,
     get_restaurants_for_destination,
-    get_flight_route_for_cities,
 )
 from app.services.weather_service import (
     get_weather,
@@ -134,6 +138,8 @@ def get_destination_attractions(destination: str):
             status_code=503,
             detail=("Unable to load tourist attractions right now."),
         )
+
+
 # ============================================================
 # Restaurants Route
 # ============================================================

@@ -7,9 +7,24 @@ const BR_MARKER = "@@BR@@";
 // The AI sometimes puts <br> tags inside table cells. Markdown renders
 // those as literal text, so swap them for a marker and turn the marker
 // into real line breaks when rendering.
+
 function prepareContent(raw) {
-  return raw.replace(/<br\s*\/?>/gi, BR_MARKER);
+  if (!raw) return "";
+
+  return raw
+    .replace(/<br\s*\/?>/gi, BR_MARKER)
+    // Convert HTML list items into Markdown list items
+    .replace(/<li\b[^>]*>/gi, "\n- ")
+    .replace(/<\/li>/gi, "\n")
+    // Remove HTML unordered/ordered list wrappers
+    .replace(/<\/?ul\b[^>]*>/gi, "\n")
+    .replace(/<\/?ol\b[^>]*>/gi, "\n")
+    // Remove any remaining HTML tags from this content
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
+
 
 function withLineBreaks(children) {
   return Children.map(children, (child) => {

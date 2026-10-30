@@ -355,7 +355,7 @@ function SavedTrips() {
                         handleDeleteTrip(trip.id)
                       }
                       className="
-                        rounded-xl
+                        rounded-xl6
                         border
                         border-red-200
                         px-4
